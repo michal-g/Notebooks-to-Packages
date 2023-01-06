@@ -1,5 +1,6 @@
 
 import os
+import argparse
 import itertools
 import re
 import requests
@@ -40,6 +41,29 @@ VALID_STATES = {
 
 
 def main():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("years", type=int, nargs=2,
+                        help="the range of years (inclusive) whose sightings "
+                             "will be considered")
+
+    parser.add_argument("--num-lags",
+                        type=int, default=52, dest="num_lags",
+                        help="the number of time series features to use in "
+                             "auto-regression")
+    parser.add_argument("--seasonal-period",
+                        type=int, default=52, dest="seasonal_period",
+                        help="the number of time points in a season to use "
+                             "for seasonal correction")
+
+    parser.add_argument("--create-plots", "-p",
+                        action='store_true', dest="create_plots",
+                        help="save visualizations to file?")
+    parser.add_argument("--verbose", "-v", action='count',
+                        help="print messages describing analysis?")
+
+    args = parser.parse_args()
+
     # initialize assets for scraping the reports portal
     base_url = 'https://nuforc.org/webreports'
     grab = requests.get('/'.join([base_url, 'ndxevent.html']))
@@ -49,9 +73,14 @@ def main():
     col_labels = ['Date', 'City', 'State', 'Country', 'Shape', 'Duration',
                   'Summary', 'Posted', 'Images']
 
+    year_regex = "({})".format(
+        '|'.join([str(year)
+                  for year in range(args.years[0], args.years[1] + 1)])
+        )
+
     # for each link to a month's data, create assets for scraping that table
     for month_link in BeautifulSoup(grab.text, 'html.parser')(
-            'a', string=re.compile("[0-9]{2}\/199[0-9]")):
+            'a', string=re.compile(f"[0-9]{{2}}\/{year_regex}")):
         month_grab = requests.get('/'.join([base_url, month_link.get('href')]))
 
         table_data = BeautifulSoup(
@@ -82,47 +111,62 @@ def main():
         format='%m/%d/%y')
     sights_df = sights_df.drop_duplicates(ignore_index=True)
 
-    state_totals = sights_df.groupby('State').size()
-    os.makedirs("map-plots", exist_ok=True)
+    if args.verbose:
+        print(f"Found {sights_df.shape[0]} unique sightings!")
 
-    fig = px.choropleth(locations=[str(x) for x in state_totals.index],
-                        scope="usa", locationmode="USA-states",
-                        color=state_totals.values,
-                        range_color=[0, state_totals.max()],
-                        color_continuous_scale=['white', 'red'])
+    if args.create_plots:
+        state_totals = sights_df.groupby('State').size()
+        os.makedirs("map-plots", exist_ok=True)
+
+        fig = px.choropleth(locations=[str(x) for x in state_totals.index],
+                            scope="usa", locationmode="USA-states",
+                            color=state_totals.values,
+                            range_color=[0, state_totals.max()],
+                            color_continuous_scale=['white', 'red'])
 
     state_table = sights_df.groupby(
         ['Date', 'State']).size().unstack().fillna(0)
-    state_table = state_table.reindex(index=pd.date_range('01-01-1990',
-                                                          '12-31-1999'),
-                                      fill_value=0).sort_index()
+
+    state_table = state_table.reindex(
+        index=pd.date_range(f"01-01-{args.years[0]}",
+                            f"12-31-{args.years[1]}"),
+        fill_value=0
+        ).sort_index()
 
     state_weeklies = state_table.groupby(
         pd.Grouper(axis=0, freq='W', sort=True)).sum()
 
-    plt_files = list()
-    for week, week_counts in state_weeklies.iterrows():
-        day_lbl = week.strftime('%F')
-        state_locs = [str(x) for x in
-                      week_counts.index.get_level_values('State')]
+    if args.create_plots:
+        plt_files = list()
 
-        fig = px.choropleth(locations=state_locs, locationmode="USA-states",
-                            title=day_lbl, scope='usa',
-                            color=week_counts.values, range_color=[0, 10],
-                            color_continuous_scale=['white', 'black'])
+        for week, week_counts in state_weeklies.iterrows():
+            day_lbl = week.strftime('%F')
+            state_locs = [str(x) for x in
+                          week_counts.index.get_level_values('State')]
 
-        plt_file = Path("map-plots", f"counts_{day_lbl}.png")
-        fig.write_image(plt_file, format='png')
-        plt_files += [imageio.v2.imread(plt_file)]
+            fig = px.choropleth(locations=state_locs,
+                                locationmode="USA-states",
+                                title=day_lbl, scope='usa',
+                                color=week_counts.values, range_color=[0, 10],
+                                color_continuous_scale=['white', 'black'])
 
-    imageio.mimsave(Path("map-plots", "counts.gif"), plt_files, duration=0.03)
+            plt_file = Path("map-plots", f"counts_{day_lbl}.png")
+            fig.write_image(plt_file, format='png')
+            plt_files += [imageio.v2.imread(plt_file)]
+
+        imageio.mimsave(Path("map-plots", "counts.gif"), plt_files,
+                        duration=0.03)
 
     pipeline = ForecasterPipeline([
         ('pre_scaler', StandardScaler()),
+
         ('features', FeatureUnion([
-            ('ar_features', AutoregressiveTransformer(num_lags=52)),
-            ('seasonal_features', SeasonalTransformer(seasonal_period=52)),
+            ('ar_features', AutoregressiveTransformer(
+                num_lags=args.num_lags)),
+            ('seasonal_features', SeasonalTransformer(
+                seasonal_period=args.seasonal_period)),
             ])),
+
         ('post_feature_imputer', ReversibleImputer()),
         ('post_feature_scaler', StandardScaler()),
         ('regressor', LinearRegression())
@@ -143,9 +187,10 @@ def main():
         real_values += cali_values[test_index].flatten().tolist()
         pred_values += preds.flatten().tolist()
 
-        plt.plot(cali_dates[test_index], cali_values[test_index],
-                 color='black')
-        plt.plot(cali_dates[test_index], preds, color='red')
+        if args.create_plots:
+            plt.plot(cali_dates[test_index], cali_values[test_index],
+                     color='black')
+            plt.plot(cali_dates[test_index], preds, color='red')
 
     rmse_val = ((np.array(real_values)
                  - np.array(pred_values)) ** 2).mean() ** 0.5
