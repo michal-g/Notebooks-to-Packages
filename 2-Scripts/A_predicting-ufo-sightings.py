@@ -25,8 +25,6 @@ from skits.feature_extraction import (AutoregressiveTransformer,
                                       SeasonalTransformer)
 
 import imageio
-from IPython.display import Image
-
 import plotly.express as px
 import matplotlib.pyplot as plt
 plt.rcParams["figure.figsize"] = (14, 9)
@@ -54,30 +52,28 @@ def main():
 
     # for each link to a month's data, create assets for scraping that table
     for month_link in BeautifulSoup(grab.text, 'html.parser')(
-            'a', string=re.compile("[0-9]{2}\/2000")):
+            'a', string=re.compile("[0-9]{2}\/199[0-9]")):
         month_grab = requests.get('/'.join([base_url, month_link.get('href')]))
 
-        for row in BeautifulSoup(month_grab.text, 'html.parser')('tr'):
-            cols = row.find_all('td')
+        table_data = BeautifulSoup(
+            month_grab.text, 'html.parser')('tr')[1]('td')
+        cur_sighting = None
 
-            if cols:
-                cur_sighting = None
-
-                for lbl, col in zip(itertools.cycle(col_labels), cols):
-                    if lbl == 'Date':
-                        if cur_sighting is not None:
-                            sightings.append(cur_sighting)
-
-                        cur_sighting = {'Date': col.string}
-
-                    else:
-                        cur_sighting[lbl] = col.string
-
+        for lbl, col in zip(itertools.cycle(col_labels), table_data):
+            if lbl == 'Date':
                 if cur_sighting is not None:
                     sightings.append(cur_sighting)
 
+                cur_sighting = {'Date': col.string}
+
+            else:
+                cur_sighting[lbl] = col.string
+
+        if cur_sighting is not None:
+            sightings.append(cur_sighting)
+
     # create a table for the sightings data and only consider valid sightings
-    sights_df = pd.DataFrame(sightings)
+    sights_df = pd.DataFrame(sightings).drop_duplicates()
     sights_df = sights_df.loc[(sights_df.Country == 'USA')
                               & sights_df.State.isin(VALID_STATES), :]
 
@@ -88,26 +84,32 @@ def main():
     sights_df = sights_df.drop_duplicates(ignore_index=True)
 
     state_totals = sights_df.groupby('State').size()
+    os.makedirs("map-plots", exist_ok=True)
 
     fig = px.choropleth(locations=[str(x) for x in state_totals.index],
                         scope="usa", locationmode="USA-states",
                         color=state_totals.values,
                         range_color=[0, state_totals.max()],
                         color_continuous_scale=['white', 'red'])
-    fig.show()
 
-    state_dailies = sights_df.groupby(['Date', 'State']).size()
+    state_table = sights_df.groupby(
+        ['Date', 'State']).size().unstack().fillna(0)
+    state_table = state_table.reindex(index=pd.date_range('01-01-1990',
+                                                          '12-31-1999'),
+                                      fill_value=0).sort_index()
+
+    state_weeklies = state_table.groupby(
+        pd.Grouper(axis=0, freq='W', sort=True)).sum()
+
     plt_files = list()
-    os.makedirs("map-plots", exist_ok=True)
-
-    for day, day_counts in state_dailies.groupby('Date'):
-        day_lbl = day.strftime('%F')
+    for week, week_counts in state_weeklies.iterrows():
+        day_lbl = week.strftime('%F')
         state_locs = [str(x) for x in
-                      day_counts.index.get_level_values('State')]
+                      week_counts.index.get_level_values('State')]
 
         fig = px.choropleth(locations=state_locs, locationmode="USA-states",
                             title=day_lbl, scope='usa',
-                            color=day_counts.values, range_color=[0, 100],
+                            color=week_counts.values, range_color=[0, 10],
                             color_continuous_scale=['white', 'black'])
 
         plt_file = Path("map-plots", f"counts_{day_lbl}.png")
@@ -119,24 +121,23 @@ def main():
     pipeline = ForecasterPipeline([
         ('pre_scaler', StandardScaler()),
         ('features', FeatureUnion([
-            ('ar_features', AutoregressiveTransformer(num_lags=1)),
-            ('seasonal_features', SeasonalTransformer(seasonal_period=1)),
+            ('ar_features', AutoregressiveTransformer(num_lags=52)),
+            ('seasonal_features', SeasonalTransformer(seasonal_period=52)),
             ])),
         ('post_feature_imputer', ReversibleImputer()),
         ('post_feature_scaler', StandardScaler()),
-        ('regressor', LinearRegression(fit_intercept=True))
+        ('regressor', LinearRegression())
         ])
 
     tscv = TimeSeriesSplit(n_splits=4)
-    cali_dailies = state_dailies.loc[(slice(None), 'CA')]
-    cali_dates = cali_dailies.index.get_level_values(
-        'Date').values.reshape(-1, 1)
-    cali_values = cali_dailies.values
+    cali_weeklies = state_weeklies.CA
+    cali_dates = cali_weeklies.index.values.reshape(-1, 1)
+    cali_values = cali_weeklies.values
 
     real_values = list()
     pred_values = list()
 
-    for train_index, test_index in tscv.split(cali_dailies):
+    for train_index, test_index in tscv.split(cali_weeklies):
         pipeline.fit(cali_dates[train_index], cali_values[train_index])
         preds = pipeline.predict(cali_dates[test_index], to_scale=True)
 
@@ -147,8 +148,8 @@ def main():
                  color='black')
         plt.plot(cali_dates[test_index], preds, color='red')
 
-    rmse_val = ((np.array(real_values) - np.array(
-        pred_values)) ** 2).mean() ** 0.5
+    rmse_val = ((np.array(real_values)
+                 - np.array(pred_values)) ** 2).mean() ** 0.5
     print(f"RMSE: {format(rmse_val, '.3f')}")
 
 
