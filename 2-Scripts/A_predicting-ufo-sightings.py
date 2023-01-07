@@ -40,6 +40,9 @@ VALID_STATES = {
 
 
 def main():
+    # Reading in raw data from UFO sightings website #
+    # ---------------------------------------------- #
+
     # initialize assets for scraping the reports portal
     base_url = 'https://nuforc.org/webreports'
     grab = requests.get('/'.join([base_url, 'ndxevent.html']))
@@ -54,10 +57,14 @@ def main():
             'a', string=re.compile("[0-9]{2}\/199[0-9]")):
         month_grab = requests.get('/'.join([base_url, month_link.get('href')]))
 
+        # the HTML formatting is kind of weird; we first grab the outermost of
+        # a recursively defined set of table elements
         table_data = BeautifulSoup(
             month_grab.text, 'html.parser')('tr')[1]('td')
         cur_sighting = None
 
+        # then we loop over a set of table entries that are defined as one big
+        # row??? maybe there's an easier way to do this but that's ok
         for lbl, col in zip(itertools.cycle(col_labels), table_data):
             if lbl == 'Date':
                 if cur_sighting is not None:
@@ -65,22 +72,31 @@ def main():
 
                 cur_sighting = {'Date': col.string}
 
+            # start a new sighting record, after adding the last record to the
+            # list of sightings if this is not the first row
             else:
                 cur_sighting[lbl] = col.string
 
+        # accounting for the last row
         if cur_sighting is not None:
             sightings.append(cur_sighting)
 
-    # create a table for the sightings data and only consider valid sightings
+    # Parsing and filtering data into formatted dataset #
+    # ------------------------------------------------- #
+
+    # create a table for the sightings data and only consider
+    # valid unique sightings
     sights_df = pd.DataFrame(sightings).drop_duplicates()
     sights_df = sights_df.loc[(sights_df.Country == 'USA')
                               & sights_df.State.isin(VALID_STATES), :]
 
-    # parse the date information into more useful format, filter out duplicates
+    # parse the date information into more useful format
     sights_df['Date'] = pd.to_datetime(
         [dt.split()[0] for dt in sights_df['Date']],
         format='%m/%d/%y')
-    sights_df = sights_df.drop_duplicates(ignore_index=True)
+
+    # Mapping state totals across entire time period #
+    # ---------------------------------------------- #
 
     state_totals = sights_df.groupby('State').size()
     os.makedirs("map-plots", exist_ok=True)
@@ -91,6 +107,12 @@ def main():
                         range_color=[0, state_totals.max()],
                         color_continuous_scale=['white', 'red'])
 
+    # Animating weekly state totals #
+    # ----------------------------- #
+
+    # create a Week x State table containing total weekly sightings for each
+    # state; note that we have to take into account "missing" weeks that did
+    # not have any sightings in any states
     state_table = sights_df.groupby(
         ['Date', 'State']).size().unstack().fillna(0)
     state_table = state_table.reindex(index=pd.date_range('01-01-1990',
@@ -100,6 +122,7 @@ def main():
     state_weeklies = state_table.groupby(
         pd.Grouper(axis=0, freq='W', sort=True)).sum()
 
+    # create a map of sightings by state for each week
     plt_files = list()
     for week, week_counts in state_weeklies.iterrows():
         day_lbl = week.strftime('%F')
@@ -111,11 +134,16 @@ def main():
                             color=week_counts.values, range_color=[0, 10],
                             color_continuous_scale=['white', 'black'])
 
+        # save the map to file and keep track of the file name
         plt_file = Path("map-plots", f"counts_{day_lbl}.png")
         fig.write_image(plt_file, format='png')
         plt_files += [imageio.v2.imread(plt_file)]
 
+    # create an animation using the individual weekly maps
     imageio.mimsave(Path("map-plots", "counts.gif"), plt_files, duration=0.03)
+
+    # Predicting weekly state totals #
+    # ------------------------------ #
 
     pipeline = ForecasterPipeline([
         ('pre_scaler', StandardScaler()),

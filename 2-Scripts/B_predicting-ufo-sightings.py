@@ -41,9 +41,12 @@ VALID_STATES = {
 
 
 def main():
+    # Grabbing parameter values from the command line #
+    # ----------------------------------------------- #
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("years", type=int, nargs=2,
+    parser.add_argument("years",
+                        type=int, nargs=2,
                         help="the range of years (inclusive) whose sightings "
                              "will be considered")
 
@@ -59,10 +62,12 @@ def main():
     parser.add_argument("--create-plots", "-p",
                         action='store_true', dest="create_plots",
                         help="save visualizations to file?")
-    parser.add_argument("--verbose", "-v", action='count',
-                        help="print messages describing analysis?")
+    parser.add_argument("--verbose", "-v", action='count')
 
     args = parser.parse_args()
+
+    # Reading in raw data from UFO sightings website #
+    # ---------------------------------------------- #
 
     # initialize assets for scraping the reports portal
     base_url = 'https://nuforc.org/webreports'
@@ -83,10 +88,14 @@ def main():
             'a', string=re.compile(f"[0-9]{{2}}\/{year_regex}")):
         month_grab = requests.get('/'.join([base_url, month_link.get('href')]))
 
+        # the HTML formatting is kind of weird; we first grab the outermost of
+        # a recursively defined set of table elements
         table_data = BeautifulSoup(
             month_grab.text, 'html.parser')('tr')[1]('td')
         cur_sighting = None
 
+        # then we loop over a set of table entries that are defined as one big
+        # row??? maybe there's an easier way to do this but that's ok
         for lbl, col in zip(itertools.cycle(col_labels), table_data):
             if lbl == 'Date':
                 if cur_sighting is not None:
@@ -94,25 +103,34 @@ def main():
 
                 cur_sighting = {'Date': col.string}
 
+            # start a new sighting record, after adding the last record to the
+            # list of sightings if this is not the first row
             else:
                 cur_sighting[lbl] = col.string
 
+        # accounting for the last row
         if cur_sighting is not None:
             sightings.append(cur_sighting)
 
-    # create a table for the sightings data and only consider valid sightings
+    # Parsing and filtering data into formatted dataset #
+    # ------------------------------------------------- #
+
+    # create a table for the sightings data and only consider
+    # valid unique sightings
     sights_df = pd.DataFrame(sightings).drop_duplicates()
     sights_df = sights_df.loc[(sights_df.Country == 'USA')
                               & sights_df.State.isin(VALID_STATES), :]
 
-    # parse the date information into more useful format, filter out duplicates
+    # parse the date information into more useful format
     sights_df['Date'] = pd.to_datetime(
         [dt.split()[0] for dt in sights_df['Date']],
         format='%m/%d/%y')
-    sights_df = sights_df.drop_duplicates(ignore_index=True)
 
     if args.verbose:
         print(f"Found {sights_df.shape[0]} unique sightings!")
+
+    # Mapping state totals across entire time period #
+    # ---------------------------------------------- #
 
     if args.create_plots:
         state_totals = sights_df.groupby('State').size()
@@ -124,6 +142,12 @@ def main():
                             range_color=[0, state_totals.max()],
                             color_continuous_scale=['white', 'red'])
 
+    # Animating weekly state totals #
+    # ----------------------------- #
+
+    # create a Week x State table containing total weekly sightings for each
+    # state; note that we have to take into account "missing" weeks that did
+    # not have any sightings in any states
     state_table = sights_df.groupby(
         ['Date', 'State']).size().unstack().fillna(0)
 
@@ -139,6 +163,7 @@ def main():
     if args.create_plots:
         plt_files = list()
 
+        # create a map of sightings by state for each week
         for week, week_counts in state_weeklies.iterrows():
             day_lbl = week.strftime('%F')
             state_locs = [str(x) for x in
@@ -154,8 +179,12 @@ def main():
             fig.write_image(plt_file, format='png')
             plt_files += [imageio.v2.imread(plt_file)]
 
+        # create an animation using the individual weekly maps
         imageio.mimsave(Path("map-plots", "counts.gif"), plt_files,
                         duration=0.03)
+
+    # Predicting weekly state totals #
+    # ------------------------------ #
 
     pipeline = ForecasterPipeline([
         ('pre_scaler', StandardScaler()),
