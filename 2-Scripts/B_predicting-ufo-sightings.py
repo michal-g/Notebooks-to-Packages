@@ -1,3 +1,22 @@
+"""Applying autoregression to predict the # of UFOs that were seen in the US.
+
+Example Usages
+--------------
+Predicting total US weekly sightings across the 90s:
+    python B_predicting-ufo-sightings.py 1990 1999
+
+Predicting California weekly sightings across the 80s:
+    python B_predicting-ufo-sightings.py 1980 1989 --states CA
+
+Predicting New England monthly sightings for five years with plots:
+    python B_predicting-ufo-sightings.py 1987 1991 \
+                --states ME MA VT NH RI --window M \
+                --num-lags=12 --seasonal-period=12
+
+Predicting biweekly Oregonian sightings since 1950:
+    python B_predicting-ufo-sightings.py 1950 2030 --states OR --window
+
+"""
 
 import os
 import argparse
@@ -11,9 +30,8 @@ import numpy as np
 import pandas as pd
 
 from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
-from sklearn.ensemble import (RandomForestClassifier,
-                              GradientBoostingClassifier,
-                              RandomForestRegressor)
+from sklearn.svm import SVR
+from sklearn.ensemble import RandomForestRegressor
 
 from sklearn.pipeline import FeatureUnion
 from sklearn.preprocessing import StandardScaler
@@ -49,6 +67,18 @@ def main():
                         type=int, nargs=2,
                         help="the range of years (inclusive) whose sightings "
                              "will be considered")
+
+    parser.add_argument("--states",
+                        type=str, nargs='+',
+                        default=VALID_STATES, choices=VALID_STATES,
+                        help="which states' sightings to predict "
+                             "— the default is to use all states")
+
+    parser.add_argument("--window",
+                        type=str, default='W',
+                        help="which time period to use to group sightings — "
+                             "the default is weekly, and any other pandas "
+                             "offset alias can be used")
 
     parser.add_argument("--num-lags",
                         type=int, default=52, dest="num_lags",
@@ -158,7 +188,7 @@ def main():
         ).sort_index()
 
     state_weeklies = state_table.groupby(
-        pd.Grouper(axis=0, freq='W', sort=True)).sum()
+        pd.Grouper(axis=0, freq=args.window, sort=True)).sum()
 
     if args.create_plots:
         plt_files = list()
@@ -202,27 +232,27 @@ def main():
         ])
 
     tscv = TimeSeriesSplit(n_splits=4)
-    cali_weeklies = state_weeklies.CA
-    cali_dates = cali_weeklies.index.values.reshape(-1, 1)
-    cali_values = cali_weeklies.values
+    pred_weeklies = state_weeklies.loc[:, list(args.states)].sum(axis=1)
+    pred_dates = pred_weeklies.index.values.reshape(-1, 1)
+    pred_values = pred_weeklies.values
 
     real_values = list()
-    pred_values = list()
+    regr_values = list()
 
-    for train_index, test_index in tscv.split(cali_weeklies):
-        pipeline.fit(cali_dates[train_index], cali_values[train_index])
-        preds = pipeline.predict(cali_dates[test_index], to_scale=True)
+    for train_index, test_index in tscv.split(pred_weeklies):
+        pipeline.fit(pred_dates[train_index], pred_values[train_index])
+        preds = pipeline.predict(pred_dates[test_index], to_scale=True)
 
-        real_values += cali_values[test_index].flatten().tolist()
-        pred_values += preds.flatten().tolist()
+        real_values += pred_values[test_index].flatten().tolist()
+        regr_values += preds.flatten().tolist()
 
         if args.create_plots:
-            plt.plot(cali_dates[test_index], cali_values[test_index],
+            plt.plot(pred_dates[test_index], pred_values[test_index],
                      color='black')
-            plt.plot(cali_dates[test_index], preds, color='red')
+            plt.plot(pred_dates[test_index], preds, color='red')
 
     rmse_val = ((np.array(real_values)
-                 - np.array(pred_values)) ** 2).mean() ** 0.5
+                 - np.array(regr_values)) ** 2).mean() ** 0.5
     print(f"RMSE: {format(rmse_val, '.3f')}")
 
 

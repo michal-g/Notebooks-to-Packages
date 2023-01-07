@@ -1,3 +1,11 @@
+"""Applying autoregression to predict the # of UFOs that were seen in the US.
+
+Example Usages
+--------------
+Really the only way to run this script is:
+    python A_predicting-ufo-sightings.py
+
+"""
 
 import os
 import itertools
@@ -10,9 +18,8 @@ import numpy as np
 import pandas as pd
 
 from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
-from sklearn.ensemble import (RandomForestClassifier,
-                              GradientBoostingClassifier,
-                              RandomForestRegressor)
+from sklearn.svm import SVR
+from sklearn.ensemble import RandomForestRegressor
 
 from sklearn.pipeline import FeatureUnion
 from sklearn.preprocessing import StandardScaler
