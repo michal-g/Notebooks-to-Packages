@@ -1,14 +1,39 @@
 ## How to turn your Python notebooks into Python packages ##
 
-In this workshop we will take a data analysis pipeline implemented in a Jupyter notebook and convert it to a script that
-can be run from command-line. We will then convert this script into a Python package: a collection of code modules
+In this workshop we will take a data analysis pipeline implemented in a Jupyter notebook and convert it into a script
+that can be run from command-line. We will then convert this script into a Python package: a collection of code modules
 supporting a pre-defined set of command-line tools.
 
-Why do this? This is a very important question. The easiest answer is that, often, there is no reason to. If you are
-already using Jupyter notebooks, you are familiar with how convenient they make it to create and test an experiment from
-scratch, allowing you to separate different parts of the experiment across "cells" for modular execution. Especially if
-you want to create plots quickly, notebooks' built-in GUI means that you can write code and produce plots within the
-same browser window.
+
+### Preparing for the workshop ###
+
+These materials are designed for users with at least some knowledge of Python, and especially using Jupyter notebooks to
+build data analysis experiments. You may also want to refresh your acquiantance with the use of Python packages such as
+`pandas`, `matplotlib`, and `requests` before starting this workshop.
+
+To run the code included in this workshop, you'll need access to a command-line environment with a
+[conda](https://conda.io/projects/conda/en/latest/index.html) installation. In this environment, choose a place to check
+out the course repository:
+
+```git clone git@github.com:michal-g/Notebooks-to-Packages.git```
+
+In the newly-created folder `Notebooks-to-Packages` you'll find a file specifying a conda environment; we create the
+environment and activate it using:
+
+```
+cd Notebooks-to-Packages
+conda env create -f environment.yml
+conda activate notebooks-packages
+```
+
+
+### Why do we want to use packages instead of notebooks? ###
+
+This is a very important question. The easiest answer is that, often, there is no reason to. If you are already using
+Jupyter notebooks, you are familiar with how convenient they make it to create and test an experiment from scratch,
+allowing you to separate different parts of the experiment across "cells" for modular execution. Especially if you want
+to create plots quickly, notebooks' built-in GUI means that you can write code and produce plots within the same browser
+window.
 
 Jupyter notebooks are great for experiments that are "linear" and "one-off", meaning that they consist of a single chain
 of steps carried out one after the other, and that these steps will not have to be updated or rearranged at some point
@@ -31,5 +56,6 @@ hundreds of such values. The penalty you pay for being able to execute individua
 the inability to turn cells (or the entire notebook) into functions with arbitrary arguments and argument values.
 
 It is difficult to appreciate the full gravity of these considerations until one actually tries to build upon an
-experiment in Jupyter. Thus we will dispense with any further preamble and introduce a simple data pipeline implemented
-in a notebook to better understand where exactly the properties inherent to notebooks limit further analysis.
+experiment in Jupyter. Thus an important feature of this workshop is the exposition of the intermediate steps involved
+in building a script, and then a package, from a notebook. This makes it easier to study the considerations that must be
+made at each step of the process, and the trade-offs inherent in engineering one's code.
