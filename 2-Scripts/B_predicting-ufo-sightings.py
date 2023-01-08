@@ -14,7 +14,7 @@ Predicting New England monthly sightings for five years with plots:
                 --num-lags=12 --seasonal-period=12
 
 Predicting biweekly Oregonian sightings since 1950:
-    python B_predicting-ufo-sightings.py 1950 2030 --states OR --window
+    python B_predicting-ufo-sightings.py 1950 2030 --states OR --window 2W
 
 """
 
@@ -154,7 +154,8 @@ def main():
     # parse the date information into more useful format
     sights_df['Date'] = pd.to_datetime(
         [dt.split()[0] for dt in sights_df['Date']],
-        format='%m/%d/%y')
+        format='%m/%d/%y'
+        )
 
     if args.verbose:
         print(f"Found {sights_df.shape[0]} unique sightings!")
@@ -162,15 +163,18 @@ def main():
     # Mapping state totals across entire time period #
     # ---------------------------------------------- #
 
+    # calculate totals across all time periods for each state and create a
+    # local directory for saving plots
     if args.create_plots:
         state_totals = sights_df.groupby('State').size()
-        os.makedirs("map-plots", exist_ok=True)
+        os.makedirs(Path("map-plots", "gif-comps"), exist_ok=True)
 
         fig = px.choropleth(locations=[str(x) for x in state_totals.index],
                             scope="usa", locationmode="USA-states",
                             color=state_totals.values,
                             range_color=[0, state_totals.max()],
                             color_continuous_scale=['white', 'red'])
+        fig.write_image(Path("map-plots", "state-totals.png"), format='png')
 
     # Animating weekly state totals #
     # ----------------------------- #
@@ -205,7 +209,7 @@ def main():
                                 color=week_counts.values, range_color=[0, 10],
                                 color_continuous_scale=['white', 'black'])
 
-            plt_file = Path("map-plots", f"counts_{day_lbl}.png")
+            plt_file = Path("map-plots", "gif-comps", f"counts_{day_lbl}.png")
             fig.write_image(plt_file, format='png')
             plt_files += [imageio.v2.imread(plt_file)]
 
@@ -231,6 +235,7 @@ def main():
         ('regressor', LinearRegression())
         ])
 
+    # assets and specially formatted objects used by the prediction pipeline
     tscv = TimeSeriesSplit(n_splits=4)
     pred_weeklies = state_weeklies.loc[:, list(args.states)].sum(axis=1)
     pred_dates = pred_weeklies.index.values.reshape(-1, 1)
@@ -239,6 +244,11 @@ def main():
     real_values = list()
     regr_values = list()
 
+    if args.create_plots:
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+    # for each cross-validation fold, use the training samples in the fold to
+    # train the pipeline and the remaining samples to test it
     for train_index, test_index in tscv.split(pred_weeklies):
         pipeline.fit(pred_dates[train_index], pred_values[train_index])
         preds = pipeline.predict(pred_dates[test_index], to_scale=True)
@@ -247,9 +257,13 @@ def main():
         regr_values += preds.flatten().tolist()
 
         if args.create_plots:
-            plt.plot(pred_dates[test_index], pred_values[test_index],
-                     color='black')
-            plt.plot(pred_dates[test_index], preds, color='red')
+            ax.plot(pred_dates[test_index], pred_values[test_index],
+                    color='black')
+            ax.plot(pred_dates[test_index], preds, color='red')
+
+    if args.create_plots:
+        fig.savefig(Path("map-plots", "predictions.png"),
+                    bbox_inches='tight', format='png')
 
     rmse_val = ((np.array(real_values)
                  - np.array(regr_values)) ** 2).mean() ** 0.5

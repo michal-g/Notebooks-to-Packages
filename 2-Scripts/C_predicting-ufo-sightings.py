@@ -14,7 +14,7 @@ Predicting New England monthly sightings for five years with plots:
                 --num-lags=12 --seasonal-period=12
 
 Predicting biweekly Oregonian sightings since 1950:
-    python C_predicting-ufo-sightings.py 1950 2030 --states OR --window
+    python C_predicting-ufo-sightings.py 1950 2030 --states OR --window 2W
 
 """
 
@@ -132,6 +132,8 @@ def plot_totals_map(sights_df):
                         range_color=[0, state_totals.max()],
                         color_continuous_scale=['white', 'red'])
 
+    fig.write_image(Path("map-plots", "state-totals.png"), format='png')
+
 
 def animate_totals_map(weeklies):
     plt_files = list()
@@ -148,7 +150,7 @@ def animate_totals_map(weeklies):
                             color=week_counts.values, range_color=[0, 10],
                             color_continuous_scale=['white', 'black'])
 
-        plt_file = Path("map-plots", f"counts_{day_lbl}.png")
+        plt_file = Path("map-plots", "gif-comps", f"counts_{day_lbl}.png")
         fig.write_image(plt_file, format='png')
         plt_files += [imageio.v2.imread(plt_file)]
 
@@ -176,6 +178,7 @@ def predict_sightings(weeklies, states, num_lags, seasonal_period,
         ('regressor', LinearRegression())
         ])
 
+    # assets and specially formatted objects used by the prediction pipeline
     tscv = TimeSeriesSplit(n_splits=4)
     pred_weeklies = weeklies.loc[:, list(states)].sum(axis=1)
     pred_dates = pred_weeklies.index.values.reshape(-1, 1)
@@ -184,6 +187,11 @@ def predict_sightings(weeklies, states, num_lags, seasonal_period,
     real_values = list()
     regr_values = list()
 
+    if create_plots:
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+    # for each cross-validation fold, use the training samples in the fold to
+    # train the pipeline and the remaining samples to test it
     for train_index, test_index in tscv.split(pred_weeklies):
         pipeline.fit(pred_dates[train_index], pred_values[train_index])
         preds = pipeline.predict(pred_dates[test_index], to_scale=True)
@@ -192,9 +200,13 @@ def predict_sightings(weeklies, states, num_lags, seasonal_period,
         regr_values += preds.flatten().tolist()
 
         if create_plots:
-            plt.plot(pred_dates[test_index], pred_values[test_index],
-                     color='black')
-            plt.plot(pred_dates[test_index], preds, color='red')
+            ax.plot(pred_dates[test_index], pred_values[test_index],
+                    color='black')
+            ax.plot(pred_dates[test_index], preds, color='red')
+
+    if create_plots:
+        fig.savefig(Path("map-plots", "predictions.png"),
+                    bbox_inches='tight', format='png')
 
     rmse_val = ((np.array(real_values)
                  - np.array(regr_values)) ** 2).mean() ** 0.5
@@ -241,7 +253,7 @@ def main():
     sights_df = scrape_sightings(*args.years, args.verbose)
 
     if args.create_plots:
-        os.makedirs("map-plots", exist_ok=True)
+        os.makedirs(Path("map-plots", "gif-comps"), exist_ok=True)
         plot_totals_map(sights_df)
 
     # create a Week x State table containing total weekly sightings for each

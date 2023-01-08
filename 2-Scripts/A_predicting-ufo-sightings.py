@@ -100,19 +100,23 @@ def main():
     # parse the date information into more useful format
     sights_df['Date'] = pd.to_datetime(
         [dt.split()[0] for dt in sights_df['Date']],
-        format='%m/%d/%y')
+        format='%m/%d/%y'
+        )
 
     # Mapping state totals across entire time period #
     # ---------------------------------------------- #
 
+    # calculate totals across all time periods for each state and create a
+    # local directory for saving plots
     state_totals = sights_df.groupby('State').size()
-    os.makedirs("map-plots", exist_ok=True)
+    os.makedirs(Path("map-plots", "gif-comps"), exist_ok=True)
 
     fig = px.choropleth(locations=[str(x) for x in state_totals.index],
                         scope="usa", locationmode="USA-states",
                         color=state_totals.values,
                         range_color=[0, state_totals.max()],
                         color_continuous_scale=['white', 'red'])
+    fig.write_image(Path("map-plots", "state-totals.png"), format='png')
 
     # Animating weekly state totals #
     # ----------------------------- #
@@ -142,7 +146,7 @@ def main():
                             color_continuous_scale=['white', 'black'])
 
         # save the map to file and keep track of the file name
-        plt_file = Path("map-plots", f"counts_{day_lbl}.png")
+        plt_file = Path("map-plots", "gif-comps", f"counts_{day_lbl}.png")
         fig.write_image(plt_file, format='png')
         plt_files += [imageio.v2.imread(plt_file)]
 
@@ -163,6 +167,7 @@ def main():
         ('regressor', LinearRegression())
         ])
 
+    # assets and specially formatted objects used by the prediction pipeline
     tscv = TimeSeriesSplit(n_splits=4)
     cali_weeklies = state_weeklies.CA
     cali_dates = cali_weeklies.index.values.reshape(-1, 1)
@@ -170,7 +175,10 @@ def main():
 
     real_values = list()
     pred_values = list()
+    fig, ax = plt.subplots(figsize=(10, 6))
 
+    # for each cross-validation fold, use the training samples in the fold to
+    # train the pipeline and the remaining samples to test it
     for train_index, test_index in tscv.split(cali_weeklies):
         pipeline.fit(cali_dates[train_index], cali_values[train_index])
         preds = pipeline.predict(cali_dates[test_index], to_scale=True)
@@ -178,9 +186,11 @@ def main():
         real_values += cali_values[test_index].flatten().tolist()
         pred_values += preds.flatten().tolist()
 
-        plt.plot(cali_dates[test_index], cali_values[test_index],
-                 color='black')
-        plt.plot(cali_dates[test_index], preds, color='red')
+        ax.plot(cali_dates[test_index], cali_values[test_index], color='black')
+        ax.plot(cali_dates[test_index], preds, color='red')
+
+    fig.savefig(Path("map-plots", "predictions.png"),
+                bbox_inches='tight', format='png')
 
     rmse_val = ((np.array(real_values)
                  - np.array(pred_values)) ** 2).mean() ** 0.5
