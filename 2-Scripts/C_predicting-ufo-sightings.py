@@ -58,6 +58,17 @@ VALID_STATES = {
     }
 
 
+def get_states_lbl(states):
+    """Create a label for a state or a set of states."""
+
+    if len(states) == 51:
+        states_lbl = 'All States'
+    else:
+        states_lbl = '+'.join(states)
+
+    return states_lbl
+
+
 def scrape_sightings(first_year, last_year, verbose):
     """Reading in raw data from UFO sightings website."""
 
@@ -70,6 +81,7 @@ def scrape_sightings(first_year, last_year, verbose):
     col_labels = ['Date', 'City', 'State', 'Country', 'Shape', 'Duration',
                   'Summary', 'Posted', 'Images']
 
+    # create a regular expression matching our range of years
     year_regex = "({})".format(
         '|'.join([str(year)
                   for year in range(first_year, last_year + 1)])
@@ -160,7 +172,7 @@ def animate_totals_map(weeklies):
 
 
 def predict_sightings(weeklies, states, num_lags, seasonal_period,
-                      create_plots=False):
+                      create_plots=False, verbose=0):
     """Predicting weekly state totals."""
 
     pipeline = ForecasterPipeline([
@@ -180,38 +192,48 @@ def predict_sightings(weeklies, states, num_lags, seasonal_period,
 
     # assets and specially formatted objects used by the prediction pipeline
     tscv = TimeSeriesSplit(n_splits=4)
-    pred_weeklies = weeklies.loc[:, list(states)].sum(axis=1)
-    pred_dates = pred_weeklies.index.values.reshape(-1, 1)
-    pred_values = pred_weeklies.values
+    pred_byfreq = weeklies.loc[:, list(states)].sum(axis=1)
+    pred_dates = pred_byfreq.index.values.reshape(-1, 1)
+    pred_values = pred_byfreq.values
 
+    if verbose > 1:
+        print(f"There are {pred_byfreq.sum()} total sightings for "
+              f"{get_states_lbl(states)}, of which the maximum "
+              f"({pred_byfreq.max()}) took place on "
+              f"{pred_byfreq.idxmax().strftime('%F')}!")
+
+    date_values = list()
     real_values = list()
     regr_values = list()
 
-    if create_plots:
-        fig, ax = plt.subplots(figsize=(10, 6))
-
     # for each cross-validation fold, use the training samples in the fold to
     # train the pipeline and the remaining samples to test it
-    for train_index, test_index in tscv.split(pred_weeklies):
+    for train_index, test_index in tscv.split(pred_byfreq):
         pipeline.fit(pred_dates[train_index], pred_values[train_index])
         preds = pipeline.predict(pred_dates[test_index], to_scale=True)
 
-        real_values += pred_values[test_index].flatten().tolist()
-        regr_values += preds.flatten().tolist()
-
-        if create_plots:
-            ax.plot(pred_dates[test_index], pred_values[test_index],
-                    color='black')
-            ax.plot(pred_dates[test_index], preds, color='red')
+        date_values += [pred_dates[test_index]]
+        real_values += [pred_values[test_index].flatten().tolist()]
+        regr_values += [preds.flatten().tolist()]
 
     if create_plots:
-        fig.savefig(Path("map-plots", "predictions.png"),
-                    bbox_inches='tight', format='png')
+        plot_predictions(date_values, real_values, regr_values)
 
     rmse_val = ((np.array(real_values)
                  - np.array(regr_values)) ** 2).mean() ** 0.5
 
     return regr_values, rmse_val
+
+
+def plot_predictions(date_values, real_values, regr_values):
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    for dates, reals, regrs in zip(date_values, real_values, regr_values):
+        ax.plot(dates, reals, color='black')
+        ax.plot(dates, regrs, color='red')
+
+    fig.savefig(Path("map-plots", "predictions.png"),
+                bbox_inches='tight', format='png')
 
 
 def main():
@@ -224,9 +246,11 @@ def main():
 
     parser.add_argument("--states",
                         type=str, nargs='+',
-                        default=VALID_STATES, choices=VALID_STATES,
-                        help="which states' sightings to predict "
-                             "— the default is to use all states")
+                        action='append', choices=VALID_STATES,
+                        help="which states' sightings to predict — the "
+                             "default is to use all states, can be repeated "
+                             "for predicting sightings for different "
+                             "sets of states")
 
     parser.add_argument("--window",
                         type=str, default='W',
@@ -246,19 +270,22 @@ def main():
     parser.add_argument("--create-plots", "-p",
                         action='store_true', dest="create_plots",
                         help="save visualizations to file?")
-    parser.add_argument("--verbose", "-v", action='count')
+    parser.add_argument("--verbose", "-v", action='count', default=0)
 
     args = parser.parse_args()
 
-    sights_df = scrape_sightings(*args.years, args.verbose)
-
-    if args.create_plots:
-        os.makedirs(Path("map-plots", "gif-comps"), exist_ok=True)
-        plot_totals_map(sights_df)
+    # allowing for multiple sets of states means we have to handle the special
+    # case where no sets were defined manually — argparse is buggy otherwise
+    if args.states:
+        states_lists = sorted(args.states)
+    else:
+        states_lists = [list(VALID_STATES)]
 
     # create a Week x State table containing total weekly sightings for each
     # state; note that we have to take into account "missing" weeks that did
     # not have any sightings in any states
+    sights_df = scrape_sightings(*args.years, args.verbose)
+
     state_table = sights_df.groupby(
         ['Date', 'State']).size().unstack().fillna(0)
 
@@ -268,18 +295,22 @@ def main():
         fill_value=0
         ).sort_index()
 
-    state_weeklies = state_table.groupby(
-        pd.Grouper(axis=0, freq=args.window, sort=True)).sum()
+    state_byfreq = state_table.groupby(
+        pd.Grouper(axis=0, freq=args.window, sort=True)).sum().astype(int)
 
     if args.create_plots:
-        animate_totals_map(state_weeklies)
+        os.makedirs(Path("map-plots", "gif-comps"), exist_ok=True)
+        plot_totals_map(sights_df)
+        animate_totals_map(state_byfreq)
 
-    pred_sightings, rmse_val = predict_sightings(
-        state_weeklies, args.states,
-        args.num_lags, args.seasonal_period, args.create_plots
-        )
+    for pred_states in states_lists:
+        pred_sightings, rmse_val = predict_sightings(
+            state_byfreq, pred_states, args.num_lags, args.seasonal_period,
+            args.create_plots, args.verbose,
+            )
 
-    print(f"RMSE: {format(rmse_val, '.3f')}")
+        print(f"{get_states_lbl(pred_states)}"
+              f"\tRMSE: {format(rmse_val, '.3f')}")
 
 
 if __name__ == '__main__':

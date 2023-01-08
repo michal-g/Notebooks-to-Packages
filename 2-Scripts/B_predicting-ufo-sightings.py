@@ -92,7 +92,7 @@ def main():
     parser.add_argument("--create-plots", "-p",
                         action='store_true', dest="create_plots",
                         help="save visualizations to file?")
-    parser.add_argument("--verbose", "-v", action='count')
+    parser.add_argument("--verbose", "-v", action='count', default=0)
 
     args = parser.parse_args()
 
@@ -108,6 +108,7 @@ def main():
     col_labels = ['Date', 'City', 'State', 'Country', 'Shape', 'Duration',
                   'Summary', 'Posted', 'Images']
 
+    # create a regular expression matching our range of years
     year_regex = "({})".format(
         '|'.join([str(year)
                   for year in range(args.years[0], args.years[1] + 1)])
@@ -191,14 +192,14 @@ def main():
         fill_value=0
         ).sort_index()
 
-    state_weeklies = state_table.groupby(
-        pd.Grouper(axis=0, freq=args.window, sort=True)).sum()
+    state_byfreq = state_table.groupby(
+        pd.Grouper(axis=0, freq=args.window, sort=True)).sum().astype(int)
 
     if args.create_plots:
         plt_files = list()
 
         # create a map of sightings by state for each week
-        for week, week_counts in state_weeklies.iterrows():
+        for week, week_counts in state_byfreq.iterrows():
             day_lbl = week.strftime('%F')
             state_locs = [str(x) for x in
                           week_counts.index.get_level_values('State')]
@@ -237,9 +238,19 @@ def main():
 
     # assets and specially formatted objects used by the prediction pipeline
     tscv = TimeSeriesSplit(n_splits=4)
-    pred_weeklies = state_weeklies.loc[:, list(args.states)].sum(axis=1)
-    pred_dates = pred_weeklies.index.values.reshape(-1, 1)
-    pred_values = pred_weeklies.values
+    pred_byfreq = state_byfreq.loc[:, list(args.states)].sum(axis=1)
+    pred_dates = pred_byfreq.index.values.reshape(-1, 1)
+    pred_values = pred_byfreq.values
+
+    if args.verbose > 1:
+        if len(args.states) == 51:
+            states_lbl = 'All States'
+        else:
+            states_lbl = '+'.join(args.states)
+
+        print(f"There are {pred_byfreq.sum()} total sightings for "
+              f"{states_lbl}, of which the maximum ({pred_byfreq.max()}) took "
+              f"place on {pred_byfreq.idxmax().strftime('%F')}!")
 
     real_values = list()
     regr_values = list()
@@ -249,7 +260,7 @@ def main():
 
     # for each cross-validation fold, use the training samples in the fold to
     # train the pipeline and the remaining samples to test it
-    for train_index, test_index in tscv.split(pred_weeklies):
+    for train_index, test_index in tscv.split(pred_byfreq):
         pipeline.fit(pred_dates[train_index], pred_values[train_index])
         preds = pipeline.predict(pred_dates[test_index], to_scale=True)
 

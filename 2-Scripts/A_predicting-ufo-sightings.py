@@ -131,7 +131,7 @@ def main():
                                       fill_value=0).sort_index()
 
     state_weeklies = state_table.groupby(
-        pd.Grouper(axis=0, freq='W', sort=True)).sum()
+        pd.Grouper(axis=0, freq='W', sort=True)).sum().astype(int)
 
     # create a map of sightings by state for each week
     plt_files = list()
