@@ -1,8 +1,27 @@
-## How to turn your Python notebooks into Python packages ##
+## Turning your Python notebooks into Python packages ##
 
 In this workshop we will take a data analysis pipeline implemented in a Jupyter notebook and convert it into a script
 that can be run from command-line. We will then convert this script into a Python package: a collection of code modules
 supporting a pre-defined set of command-line tools.
+
+
+## Table of contents ##
+
+1. **Notebooks**  
+    - introducing a data analysis implemented in a Jupyter notebook
+    - advantages and disadvantages of notebooks
+    - when to consider moving beyond a notebook
+
+
+2. **Scripts**  
+    - converting a notebook into a script  
+    - parametrizing a script  
+    - modularizing a script
+
+
+3. **Packages**
+    - converting a script into a package
+    - applying object-oriented programming within a package
 
 
 ### Preparing for the workshop ###
