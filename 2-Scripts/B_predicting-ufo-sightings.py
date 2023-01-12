@@ -154,9 +154,7 @@ def main():
 
     # parse the date information into more useful format
     sights_df['Date'] = pd.to_datetime(
-        [dt.split()[0] for dt in sights_df['Date']],
-        format='%m/%d/%y'
-        )
+        [dt.split()[0] for dt in sights_df['Date']], format='%m/%d/%y')
 
     if args.verbose:
         print(f"Found {sights_df.shape[0]} unique sightings!")

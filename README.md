@@ -14,19 +14,19 @@ the other tools at your disposal as a Python developer.
 ## Table of contents ##
 
 1. **Notebooks**  
-    - introducing a data analysis implemented in a Jupyter notebook
-    - advantages and disadvantages of notebooks
-    - when to consider moving beyond a notebook
+    - introducing predicting UFO sightings, as implemented in a Jupyter notebook
+    - the advantages and disadvantages of notebooks
+    - when in the development of an experiment to consider moving beyond a notebook
 
 
 2. **Scripts**  
     - converting a notebook into a script  
-    - parametrizing a script  
-    - modularizing a script
+    - parametrizing a script using `argparse`
+    - modularizing a script using helper functions
 
 
 3. **Packages**
-    - converting a script into a package
+    - converting a script into a package for release
     - applying object-oriented programming within a package
 
 

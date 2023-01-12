@@ -23,7 +23,7 @@ a button, but it's not like Jupyter notebooks make that particularly difficult e
 running our analysis on a Jupyter server, and we can run this script in any terminal with the right conda installation,
 but that is about it. On the other hand, we have lost the ability to quickly look at our plots as our analysis runs, and
 it's not immediately obvious how we would step through this code to examine intermediate outputs or to debug (hint:
-[pdb](https://docs.python.org/3.9/library/pdb.html).
+[pdb](https://docs.python.org/3.9/library/pdb.html)).
 
 Excepting some specific circumstances, creating a script like this is pointless. We did not put much time into it, but
 it has not made our lives easier in any significant way, nor has it made our experiment any more compelling. This is
@@ -56,19 +56,40 @@ for far greater flexibility within each argument: we can define optional argumen
 (`--states`), a boolean flag that can be "turned on" (`--create-plots`), a flag that can be specified an arbitrary
 number of times to "increase" its strength (`-vvvvv`), and of course many other options that we omit here.
 
-By creating an explicit list of an attributes in our experiment that can be manipulated we have also given the user some
-very useful information about the structure of the experiment itself.
+By creating an explicit list of attributes in our experiment that can be manipulated we have also given the user some
+very useful information about the structure of the experiment itself. Writing help messages for each argument further
+helps document what this experiment is testing. `argparse` automatically compiles this information into a help screen,
+which can be accessed by running `python B_predicting-ufo-sightings.py -h`.
 
 
 ### C) Using functions to modularize our script ###
 
 `argparse` makes life easier for the user of your script, who can now find many different ways to modify and test our
-sightings prediction pipeline. What about making life easier for you, the designer and maintainer of this code? Our
+sightings prediction pipeline. What about making life easier for you, the designer and maintainer of this code?[^1] Our
 experiment is still one long block of code, but breaking it up into smaller parts that interact with one another will
 simplify debugging and adding functionality to this analysis.
 
 We were careful in designing the cells of our notebook, and so the five original cells correspond directly to the steps
-of processing the input datasets, cleaning them, creating two types of plots, and training a prediction algorithm. In
-our first two scripts we made demarcations in the code using block comments to identify where these steps were taking
-place; but it would be better if the structure of the code itself reflected the structure of the experiment in a less
-superficial manner.
+of processing the input datasets, cleaning them, creating two types of plots, and training a prediction algorithm. This
+proved convenient, as each cell became a self-contained portion of our analysis. In our first two scripts we made
+demarcations in the code using block comments to identify where these steps were taking place; but it would be better if
+the structure of the code itself reflected the structure of the experiment in a more meaningful manner.
+
+In this script we thus created separate functions for each of our steps (`scrape_sightings()`, `plot_totals_map()`,
+etc.) Each of these is invoked by `main()`, which runs as before after parsing arguments from command line. This new
+modular design makes it easier to see what steps are being carried out by our experiment, and in what order, without
+having to pore through the minutae of what each individual step does.
+
+The new functions are also useful for giving us greater flexibility around extending the structure of the experiment.
+For example, to repeat a step, now we just have to call the function again, instead of copying the code, or running the
+script again. We take advantange of this — in conjunction with another useful feature in `argparse` — to add the ability
+to test multiple sets of states in one run of the script by allowing the `--states` argument to be repeated.
+
+Another advantage of modularization becomes more apparent when other researchers would like to use parts of your
+experiment without having to run the whole thing. Debugging code for scraping websites can be a pain, and so your
+colleague may want to try their own experiment on the same sightings data without having to write their own
+`scrape_sightings`. This design makes it easier for them to identify the part of the code responsible for this step, and
+to copy it in its entirety without having to worry about what is happening in the rest of the script.
+
+
+[^1]: in the context of research 99% of the time the sole user and also designer of the code will be: you
