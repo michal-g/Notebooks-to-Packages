@@ -262,6 +262,8 @@ def main():
         pipeline.fit(pred_dates[train_index], pred_values[train_index])
         preds = pipeline.predict(pred_dates[test_index], to_scale=True)
 
+        # we'll keep track of the actual sightings and the predicted sightings
+        # from each c-v fold for future reference
         real_values += pred_values[test_index].flatten().tolist()
         regr_values += preds.flatten().tolist()
 
@@ -274,6 +276,7 @@ def main():
         fig.savefig(Path("map-plots", "predictions.png"),
                     bbox_inches='tight', format='png')
 
+    # measure the quality of the predictions using root-mean-squared-error
     rmse_val = ((np.array(real_values)
                  - np.array(regr_values)) ** 2).mean() ** 0.5
     print(f"RMSE: {format(rmse_val, '.3f')}")

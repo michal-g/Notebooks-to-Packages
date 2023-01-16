@@ -7,7 +7,7 @@ do to simplify the process of running and building upon the experiment in `predi
 can't give or explain the code to directly?
 
 
-### A) Creating a Python package ###
+### An introduction to using packages in Python ###
 
 First off: package management, which includes creating packages, is among the two or three major weaknesses of Python as
 a programming language. Although the Python development team has been making progress on this front in the last few
@@ -25,16 +25,16 @@ to share not just your scripts, but also each of the components of your analysis
 separate parts. Our final script introduced modularization, which turned these components into functions, but allowing
 others to import these functions into their own code is difficult if the module they are in is not part of a package.
 
-When creating the PredUFO package we can use a `pyproject.toml` file to specify which parts of our code are designed to
-be used in other analyses as well. We can also create programs that can be run from command line; in effect these are
-equivalent to scripts which have been given handy aliases (e.g. `predUSA` for `predicting-ufo-sightings.py`).
+
+### Designing the structure of your package ###
 
 
-### B) Introducing object-oriented code design ###
+### The `pyproject.toml` file ###
 
-The final part of this workshop will recast the code in our experiment around objects with attributes and actions, which
-in Python (and most other languages supporting OOP) are called _classes_. Up to this point our we have expressed this
-experiment as a series of isolated actions — this is particularly evident in the `main()` routine of our final script.
-However, we can instead describe the work being done in terms of the behaviour of a `Sightings` object, which has
-actions (_methods_ in the lingo of OOP) that use its internal attributes to produce the plots and classifier training we
-need.
+When creating a Python package we can use a specification file, always named `pyproject.toml` and placed at the root of
+the package, to specify which parts of our code are designed to be used in other analyses as well. We can also create
+programs that can be run from command line; in effect these are equivalent to scripts which have been given handy
+aliases (e.g. `predUSA` for `predicting-ufo-sightings.py`).
+
+
+### Sharing your package with others ###

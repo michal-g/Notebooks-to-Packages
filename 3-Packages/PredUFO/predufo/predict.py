@@ -62,6 +62,8 @@ def predict_sightings(
         pipeline.fit(pred_dates[train_index], pred_values[train_index])
         preds = pipeline.predict(pred_dates[test_index], to_scale=True)
 
+        # we'll keep track of the actual sightings and the predicted sightings
+        # from each c-v fold for future reference
         date_values += [pred_dates[test_index]]
         real_values += [pred_values[test_index].flatten().tolist()]
         regr_values += [preds.flatten().tolist()]
@@ -69,6 +71,7 @@ def predict_sightings(
     if create_plots:
         plot_predictions(date_values, real_values, regr_values)
 
+    # measure the quality of the predictions using root-mean-squared-error
     rmse_val = ((np.array(real_values)
                  - np.array(regr_values)) ** 2).mean() ** 0.5
 

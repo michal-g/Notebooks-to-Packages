@@ -22,8 +22,7 @@ Did we gain anything from this? Not really! It's now easier to run this experime
 a button, but it's not like Jupyter notebooks make that particularly difficult either. We are no longer constrained to
 running our analysis on a Jupyter server, and we can run this script in any terminal with the right conda installation,
 but that is about it. On the other hand, we have lost the ability to quickly look at our plots as our analysis runs, and
-it's not immediately obvious how we would step through this code to examine intermediate outputs or to debug (hint:
-[pdb](https://docs.python.org/3.9/library/pdb.html)).
+it's not immediately obvious how we would step through this code to examine intermediate outputs or to debug[^1].
 
 Excepting some specific circumstances, creating a script like this is pointless. We did not put much time into it, but
 it has not made our lives easier in any significant way, nor has it made our experiment any more compelling. This is
@@ -35,13 +34,13 @@ take a look at two possible ways we can build upon both our code and our experim
 
 The command `python A_predicting-ufo-sightings.py` is conspicuous in its brevity. For all the different modications and
 tweaks we could make to our analysis, all it does run one particular version of the sightings pipeline, one particular
-way. Running from the command line means we could append any arbitrary text to the command (why can't we do this in a
-notebook?) — can we leverage this fact?
+way. Running from the command line means we could append any arbitrary text to the command, impossible within a notebook
+— can we leverage this fact?
 
-Fortunately Python has a [package](https://docs.python.org/3.9/library/argparse.html) `argparse` (and some others) that
-allow a script to accept arguments from command line — that is, to parse text appended to the command
-`python A_predicting-ufo-sightings.py` into variables that can be accessed by code within the script. In this script we
-are only using a small slice of the many possible ways `argparse` can parse input arguments, and yet we have already
+Fortunately Python has a [package](https://docs.python.org/3.9/library/argparse.html) `argparse` that allows a script to
+accept arguments from command line — that is, to parse text appended to the command
+`python A_predicting-ufo-sightings.py` into variables that can be accessed by code within the script[^2]. In this script
+we are only using a small slice of the many possible ways `argparse` can parse input arguments, and yet we have already
 made out analysis considerably more flexible and interesting.
 
 `argparse` implements a two-tiered structure for passing arguments to a script, in which _positional_ arguments are
@@ -65,7 +64,7 @@ which can be accessed by running `python B_predicting-ufo-sightings.py -h`.
 ### C) Using functions to modularize our script ###
 
 `argparse` makes life easier for the user of your script, who can now find many different ways to modify and test our
-sightings prediction pipeline. What about making life easier for you, the designer and maintainer of this code?[^1] Our
+sightings prediction pipeline. What about making life easier for you, the designer and maintainer of this code?[^3] Our
 experiment is still one long block of code, but breaking it up into smaller parts that interact with one another will
 simplify debugging and adding functionality to this analysis.
 
@@ -92,4 +91,9 @@ colleague may want to try their own experiment on the same sightings data withou
 to copy it in its entirety without having to worry about what is happening in the rest of the script.
 
 
-[^1]: in the context of research 99% of the time the sole user and also designer of the code will be: you
+[^1]: debugging tools abound but are outside the scope of this workshop: the built-in Python debugger is sufficient in
+      most circumstances: [pdb](https://docs.python.org/3.9/library/pdb.html)
+[^2]: there are more advanced alternatives to `argparse`, which you can read about
+      [here](https://realpython.com/comparing-python-command-line-parsing-libraries-argparse-docopt-click/);
+      to read in the arguments as a flat list you can also use the more basic `sys.argv` approach
+[^3]: in the context of research, 99% of the time the sole user and also designer of the code will be: you

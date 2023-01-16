@@ -2,7 +2,8 @@
 
 In this workshop we will take a data analysis pipeline implemented in a Jupyter notebook and convert it into a script
 that can be run from command-line. We will then convert this script into a Python package: a collection of code modules
-supporting a pre-defined set of command-line tools.
+supporting a pre-defined set of command-line tools. Finally, we will refactor the package by applying the paradigm of
+object-oriented programming.
 
 The purpose of this course is **not** to dissuade you from using Jupyter! Notebooks are an incredibly accessible and
 powerful tool for data scientists and researchers alike. However, as an experiment expands in scope and scale, the
@@ -13,21 +14,28 @@ the other tools at your disposal as a Python developer.
 
 ## Table of contents ##
 
-1. **Notebooks**  
+1. **Notebooks**
     - introducing predicting UFO sightings, as implemented in a Jupyter notebook
     - the advantages and disadvantages of notebooks
     - when in the development of an experiment to consider moving beyond a notebook
 
 
-2. **Scripts**  
+2. **Scripts**
     - converting a notebook into a script  
     - parametrizing a script using `argparse`
     - modularizing a script using helper functions
 
 
 3. **Packages**
-    - converting a script into a package for release
+    - how packages are designed in Python
+    - possible ways to structure your packahe
+    - creating package infrastructure
+    - sharing your package with the world 
+
+
+4. **Classes**
     - applying object-oriented programming within a package
+    - how OOP affects package structure
 
 
 ### Preparing for the workshop ###
