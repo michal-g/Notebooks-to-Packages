@@ -2,11 +2,153 @@
 import re
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
+from pathlib import Path
 import itertools
+from typing import Optional, Iterable
+from .utils import get_states_lbl
+
+import numpy as np
+import pandas as pd
+
+import imageio
+import plotly.express as px
+import matplotlib.pyplot as plt
+
+from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
+from sklearn.svm import SVR
+from sklearn.ensemble import RandomForestRegressor
+
+from sklearn.pipeline import FeatureUnion
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import TimeSeriesSplit
+
+from skits.preprocessing import ReversibleImputer
+from skits.pipeline import ForecasterPipeline
+from skits.feature_extraction import (AutoregressiveTransformer,
+                                      SeasonalTransformer)
 
 
 class Sightings:
+
+    def __init__(self,
+                 freq_table: pd.DataFrame, freq: str, country: str) -> None:
+        if len(freq_table.shape) == 2:
+            freq_sums = freq_table.groupby(
+                pd.Grouper(axis=0, freq=freq, sort=True)).sum().astype(int)
+
+        elif len(freq_table.shape) == 1:
+            freq_sums = freq_table.groupby(
+                pd.Grouper(freq=freq)).sum().astype(int)
+
+        else:
+            raise ValueError("Unrecognized shape for sightings table!")
+
+        self.freq_sums = freq_sums
+        self.country = country
+
+    def animate_totals_map(self) -> None:
+        """Animating periodical state totals."""
+        if self.country == 'usa':
+            print("warning: state total animations only available "
+                  "for US sightings!")
+            return None
+
+        plt_files = list()
+
+        # create a map of sightings by state for each time period
+        for dt, freq_counts in self.freq_sums.iterrows():
+            day_lbl = dt.strftime('%F')
+            state_locs = [str(x) for x in
+                          freq_counts.index.get_level_values('State')]
+
+            fig = px.choropleth(locations=state_locs,
+                                locationmode="USA-states",
+                                title=day_lbl, scope='usa',
+                                color=freq_counts.values, range_color=[0, 10],
+                                color_continuous_scale=['white', 'black'])
+
+            plt_file = Path("map-plots", "gif-comps", f"counts_{day_lbl}.png")
+            fig.write_image(plt_file, format='png')
+            plt_files += [imageio.v2.imread(plt_file)]
+
+        # create an animation using the individual weekly maps
+        imageio.mimsave(Path("map-plots", "counts.gif"), plt_files,
+                        duration=0.03)
+
+    def predict(self,
+                num_lags: int, seasonal_period: int,
+                states: Optional[Iterable[str]] = None,
+                create_plots: bool = False,
+                verbose: int = 0) -> tuple[list[float], float]:
+        """Predicting weekly state totals."""
+
+        pipeline = ForecasterPipeline([
+            ('pre_scaler', StandardScaler()),
+
+            ('features', FeatureUnion([
+                ('ar_features', AutoregressiveTransformer(
+                    num_lags=num_lags)),
+                ('seasonal_features', SeasonalTransformer(
+                    seasonal_period=seasonal_period)),
+                ])),
+
+            ('post_feature_imputer', ReversibleImputer()),
+            ('post_feature_scaler', StandardScaler()),
+            ('regressor', LinearRegression())
+            ])
+
+        if states:
+            pred_byfreq = self.freq_sums.loc[:, list(states)].sum(axis=1)
+        else:
+            pred_byfreq = self.freq_sums.copy()
+
+        # assets and formatted objects used by the prediction pipeline
+        tscv = TimeSeriesSplit(n_splits=4)
+        pred_dates = pred_byfreq.index.values.reshape(-1, 1)
+        pred_values = pred_byfreq.values
+
+        if verbose > 1:
+            print(f"There are {pred_byfreq.sum()} total sightings for "
+                  f"{get_states_lbl(states)}, of which the maximum "
+                  f"({pred_byfreq.max()}) took place on "
+                  f"{pred_byfreq.idxmax().strftime('%F')}!")
+
+        date_values = list()
+        real_values = list()
+        regr_values = list()
+
+        # for each cross-validation fold, use the training samples in the fold
+        # to train the pipeline and the remaining samples to test it
+        for train_index, test_index in tscv.split(pred_byfreq):
+            pipeline.fit(pred_dates[train_index], pred_values[train_index])
+            preds = pipeline.predict(pred_dates[test_index], to_scale=True)
+
+            # we'll keep track of the actual sightings and the predicted
+            # sightings from each c-v fold for future reference
+            date_values += [pred_dates[test_index]]
+            real_values += [pred_values[test_index].flatten().tolist()]
+            regr_values += [preds.flatten().tolist()]
+
+        # plot predicted sighting counts versus historical counts
+        if create_plots:
+            fig, ax = plt.subplots(figsize=(10, 6))
+
+            for dates, reals, regrs in zip(date_values, real_values,
+                                           regr_values):
+                ax.plot(dates, reals, color='black')
+                ax.plot(dates, regrs, color='red')
+
+            fig.savefig(Path("map-plots", "predictions.png"),
+                        bbox_inches='tight', format='png')
+
+        # measure the quality of the predictions using root-mean-squared-error
+        rmse_val = ((np.array(real_values)
+                     - np.array(regr_values)) ** 2).mean() ** 0.5
+
+        return regr_values, rmse_val
+
+
+class SightingsDataset:
 
     # we will be very careful to filter sightings that can be mapped to states
     VALID_STATES = {
@@ -17,7 +159,9 @@ class Sightings:
         'UT', 'VA', 'VT', 'WA', 'WI', 'WV', 'WY'
         }
 
-    def __init__(self, first_year: int, last_year: int, verbosity: int):
+    def __init__(self,
+                 first_year: int, last_year: int, country: str = 'usa',
+                 verbosity: int = 0) -> None:
 
         # initialize assets for scraping the reports portal
         base_url = 'https://nuforc.org/webreports'
@@ -64,11 +208,21 @@ class Sightings:
             if cur_sighting is not None:
                 sightings.append(cur_sighting)
 
-        # create a table for the sightings data and only consider
-        # valid unique sightings
+        # create a table for the sightings and only consider unique sightings
         sights_df = pd.DataFrame(sightings).drop_duplicates()
-        sights_df = sights_df.loc[(sights_df.Country == 'USA')
-                                  & sights_df.State.isin(self.VALID_STATES), :]
+
+        # get valid sightings for given country
+        if country == 'usa':
+            valid_sights = sights_df.State.isin(self.VALID_STATES)
+            sights_df = sights_df.loc[(sights_df.Country == 'USA')
+                                      & valid_sights, :]
+
+        elif country == 'canada':
+            sights_df = sights_df.loc[sights_df.Country == 'Canada', :]
+
+        else:
+            raise ValueError(
+                f"Unrecognized country for sightings: `{country}`!")
 
         # parse the date information into more useful format
         sights_df['Date'] = pd.to_datetime(
@@ -79,5 +233,36 @@ class Sightings:
 
         self.first_year = first_year
         self.last_year = last_year
+        self.country = country
         self.verbosity = verbosity
         self.sights_data = sights_df
+
+    def get_sightings(self, freq: str) -> Sightings:
+        if self.country == 'usa':
+            freq_table = self.sights_data.groupby(
+                ['Date', 'State']).size().unstack().fillna(0)
+
+            freq_table = freq_table.reindex(
+                index=pd.date_range(f"01-01-{self.first_year}",
+                                    f"12-31-{self.last_year}"),
+                fill_value=0
+                ).sort_index()
+
+        elif self.country == 'canada':
+            freq_table = self.sights_data.groupby('Date').size().reindex(
+                index=pd.date_range(f"01-01-{self.first_year}",
+                                    f"12-31-{self.last_year}"),
+                fill_value=0
+                ).sort_index()
+
+        return Sightings(freq_table, freq, self.country)
+
+    def plot_totals_map(self) -> None:
+        """Mapping state totals across entire time period."""
+        state_totals = self.sights_data.groupby('State').size()
+
+        fig = px.choropleth(locations=[str(x) for x in state_totals.index],
+                            scope="usa", locationmode="USA-states",
+                            color=state_totals.values,
+                            range_color=[0, state_totals.max()],
+                            color_continuous_scale=['white', 'red'])
