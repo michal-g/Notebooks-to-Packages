@@ -1,6 +1,7 @@
 
 import numpy as np
 import pandas as pd
+from typing import Optional, Iterable
 
 from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
 from sklearn.svm import SVR
@@ -20,8 +21,9 @@ from .utils import get_states_lbl
 
 
 def predict_sightings(
-        weeklies: pd.DataFrame, states: list[str], num_lags: int,
-        seasonal_period: int, create_plots: bool = False, verbose: int = 0
+        weeklies: pd.DataFrame, num_lags: int, seasonal_period: int,
+        states: Optional[Iterable[str]] = None,
+        create_plots: bool = False, verbose: int = 0
         ) -> tuple[list[float], float]:
     """Predicting weekly state totals."""
 
@@ -40,9 +42,13 @@ def predict_sightings(
         ('regressor', LinearRegression())
         ])
 
+    if states:
+        pred_byfreq = weeklies.loc[:, list(states)].sum(axis=1)
+    else:
+        pred_byfreq = weeklies.copy()
+
     # assets and specially formatted objects used by the prediction pipeline
     tscv = TimeSeriesSplit(n_splits=4)
-    pred_byfreq = weeklies.loc[:, list(states)].sum(axis=1)
     pred_dates = pred_byfreq.index.values.reshape(-1, 1)
     pred_values = pred_byfreq.values
 

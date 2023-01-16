@@ -1,10 +1,10 @@
 ## Creating a package for our suite of data analyses ##
 
-![](../resources/calling.jpg)
+![](../resources/canada.png)
 
-Our experiment is now fleshed out, and we would like to share it with other researchers for their own use. What can we
-do to simplify the process of running and building upon the experiment in `predicting-ufo-sightings.py` for those who we
-can't give or explain the code to directly?
+Our experiment has expanded north of the border! Our Canadian colleagues need our help and we've added some features to
+our analysis we'd like to share with them. What can we do to simplify the process of running and building upon the
+`predicting-ufo-sightings.py` pipeline for those who we can't share the code with directly?
 
 
 ### An introduction to using packages in Python ###

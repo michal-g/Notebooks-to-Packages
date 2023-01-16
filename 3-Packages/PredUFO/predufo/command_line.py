@@ -10,13 +10,36 @@ from .predict import predict_sightings
 from .utils import get_states_lbl
 
 
-def predict_usa():
-    parser = argparse.ArgumentParser()
+parent_parser = argparse.ArgumentParser(add_help=False)
 
-    parser.add_argument("years",
-                        type=int, nargs=2,
-                        help="the range of years (inclusive) whose sightings "
-                             "will be considered")
+parent_parser.add_argument("years",
+                           type=int, nargs=2,
+                           help="the range of years (inclusive) whose "
+                                "sightings will be considered")
+
+parent_parser.add_argument("--window",
+                           type=str, default='W',
+                           help="which time period to use to group sightings "
+                                "— the default is weekly, and any other "
+                                "pandas offset alias can be used")
+
+parent_parser.add_argument("--num-lags",
+                           type=int, default=52, dest="num_lags",
+                           help="the number of time series features to use in "
+                                "auto-regression")
+parent_parser.add_argument("--seasonal-period",
+                           type=int, default=52, dest="seasonal_period",
+                           help="the number of time points in a season to use "
+                                "for seasonal correction")
+
+parent_parser.add_argument("--create-plots", "-p",
+                           action='store_true', dest="create_plots",
+                           help="save visualizations to file?")
+parent_parser.add_argument("--verbose", "-v", action='count', default=0)
+
+
+def predict_usa():
+    parser = argparse.ArgumentParser(parents=[parent_parser])
 
     parser.add_argument("--states",
                         type=str, nargs='+',
@@ -25,26 +48,6 @@ def predict_usa():
                              "default is to use all states, can be repeated "
                              "for predicting sightings for different "
                              "sets of states")
-
-    parser.add_argument("--window",
-                        type=str, default='W',
-                        help="which time period to use to group sightings — "
-                             "the default is weekly, and any other pandas "
-                             "offset alias can be used")
-
-    parser.add_argument("--num-lags",
-                        type=int, default=52, dest="num_lags",
-                        help="the number of time series features to use in "
-                             "auto-regression")
-    parser.add_argument("--seasonal-period",
-                        type=int, default=52, dest="seasonal_period",
-                        help="the number of time points in a season to use "
-                             "for seasonal correction")
-
-    parser.add_argument("--create-plots", "-p",
-                        action='store_true', dest="create_plots",
-                        help="save visualizations to file?")
-    parser.add_argument("--verbose", "-v", action='count', default=0)
 
     args = parser.parse_args()
 
@@ -79,9 +82,34 @@ def predict_usa():
 
     for pred_states in states_lists:
         pred_sightings, rmse_val = predict_sightings(
-            state_byfreq, pred_states, args.num_lags, args.seasonal_period,
+            state_byfreq, args.num_lags, args.seasonal_period, pred_states,
             args.create_plots, args.verbose,
             )
 
         print(f"{get_states_lbl(pred_states)}"
               f"\tRMSE: {format(rmse_val, '.3f')}")
+
+
+def predict_canada():
+    parser = argparse.ArgumentParser(parents=[parent_parser])
+    args = parser.parse_args()
+
+    # create a table containing total weekly sightings; note that we have to
+    # take into account "missing" weeks that did not have any sightings
+    sights_df = scrape_sightings(*args.years, args.verbose, country='canada')
+
+    date_table = sights_df.groupby('Date').size().reindex(
+        index=pd.date_range(f"01-01-{args.years[0]}",
+                            f"12-31-{args.years[1]}"),
+        fill_value=0
+        ).sort_index()
+
+    canada_byfreq = date_table.groupby(
+        pd.Grouper(freq=args.window)).sum().astype(int)
+
+    pred_sightings, rmse_val = predict_sightings(
+        canada_byfreq, args.num_lags, args.seasonal_period, None,
+        args.create_plots, args.verbose,
+        )
+
+    print(f"{get_states_lbl(None)}\tRMSE: {format(rmse_val, '.3f')}")

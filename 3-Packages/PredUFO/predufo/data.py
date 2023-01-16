@@ -17,7 +17,7 @@ VALID_STATES = {
 
 
 def scrape_sightings(first_year: int, last_year: int,
-                     verbose: int) -> pd.DataFrame:
+                     verbose: int, country: str = 'usa') -> pd.DataFrame:
     """Reading in raw data from UFO sightings website."""
 
     # initialize assets for scraping the reports portal
@@ -64,11 +64,19 @@ def scrape_sightings(first_year: int, last_year: int,
         if cur_sighting is not None:
             sightings.append(cur_sighting)
 
-    # create a table for the sightings data and only consider
-    # valid unique sightings
+    # create a table for the sightings data and only consider unique sightings
     sights_df = pd.DataFrame(sightings).drop_duplicates()
-    sights_df = sights_df.loc[(sights_df.Country == 'USA')
-                              & sights_df.State.isin(VALID_STATES), :]
+
+    # get valid sightings for given country
+    if country == 'usa':
+        sights_df = sights_df.loc[(sights_df.Country == 'USA')
+                                  & sights_df.State.isin(VALID_STATES), :]
+
+    elif country == 'canada':
+        sights_df = sights_df.loc[sights_df.Country == 'Canada', :]
+
+    else:
+        raise ValueError(f"Unrecognized country for sightings: `{country}`!")
 
     # parse the date information into more useful format
     sights_df['Date'] = pd.to_datetime(

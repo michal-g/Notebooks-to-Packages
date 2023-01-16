@@ -22,3 +22,4 @@ classifiers = [
 
 [project.scripts]
 predUFO-USA = "predufo.command_line:predict_usa"
+predUFO-Canada = "predufo.command_line:predict_canada"
