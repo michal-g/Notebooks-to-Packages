@@ -1,4 +1,4 @@
-## Turning your Python notebooks into Python packages ##
+# Turning your Python notebooks into Python packages #
 
 In this workshop we will take a data analysis pipeline implemented in a Jupyter notebook and convert it into a script
 that can be run from command-line. We will then convert this script into a Python package: a collection of code modules
@@ -38,7 +38,7 @@ the other tools at your disposal as a Python developer.
     - how OOP affects package structure
 
 
-### Preparing for the workshop ###
+## Preparing for the workshop ##
 
 These materials are designed for users with at least some knowledge of Python, and particuarly with using Jupyter
 notebooks to build data analysis experiments. You may also want to refresh your acquiantance with the use of Python

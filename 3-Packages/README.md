@@ -1,4 +1,4 @@
-## Creating a package for our suite of data analyses ##
+# Creating a package for our suite of data analyses #
 
 ![](../resources/canada.png)
 
@@ -7,7 +7,7 @@ our analysis we'd like to share with them. What can we do to simplify the proces
 `predicting-ufo-sightings.py` pipeline for those who we can't share the code with directly?
 
 
-### An introduction to using packages in Python ###
+## An introduction to using packages in Python ##
 
 First off: package management, which includes creating packages, is among the two or three major weaknesses of Python as
 a programming language. Although the Python development team has been making progress on this front in the last few
@@ -26,15 +26,66 @@ separate parts. Our final script introduced modularization, which turned these c
 others to import these functions into their own code is difficult if the module they are in is not part of a package.
 
 
-### Designing the structure of your package ###
+## Designing the structure of your package ##
+
+In the last stage of developing our pipeline's script, we modularized the code by breaking it apart into its constituent
+parts and turning each of these parts into its own function. We can now go one step further and start organizing these
+functions across different files, which in Python are called _modules_. A higher-order structure prevents our code base
+from becoming cluttered and unmanageable as we add more features to the experiment.
+
+We hence have modules `data`, `plot`, and `predict`, as well as `utils`, which we'll use for helper functions used
+across the other modules. How should these be arranged within the package folder structure? The package `PredUFO`
+demonstrates a very simple structure for use in our case:
+
+```
+PredUFO
++-- predufo
+    +-- __init__.py
+    +-- data.py
+    +-- plot.py
+    +-- predict.py
+    +-- utils.py
+    +-- command_line.py
++-- pyproject.toml
+```
+
+There is a folder, `predufo`, which contains the source code for our analysis; we will place meta-data for the package
+in the root package directory `PredUFO`. The root directory will usually contain other meta-data for the package in
+addition to `pyproject.toml`, such as licensing information and READMEs, which we omit here for the sake of showing a
+minimal working example.
+
+Let's consider some of the other new files we have created for our package and what they do.
 
 
-### The `pyproject.toml` file ###
+### \__init\__.py and subpackages ###
+We have created a file inside `predufo` named `__init__.py` which identifies this folder as a Python package. Here we
+must draw the distinction between the `PredUFO` package, which is the collection of files and folders that we distribute
+to others so they can run our analysis, and the `predufo` package, more narrowly defined as the collection of modules
+under a specific alias that are imported into Python through `PredUFO`. A Python package can have an infinitely
+recursively defined set of subpackages.
 
-When creating a Python package we can use a specification file, always named `pyproject.toml` and placed at the root of
-the package, to specify which parts of our code are designed to be used in other analyses as well. We can also create
-programs that can be run from command line; in effect these are equivalent to scripts which have been given handy
-aliases (e.g. `predUSA` for `predicting-ufo-sightings.py`).
+When we turn `predufo` into a Python package, its modules become available through import statements which can be used
+in other places: `predufo.data.scrape_sightings()` as well as from within our package:
+`from .plot import plot_totals_map, animate_totals_map`. It is common to define a list of commonly used resources in
+`__init__` so that they can be imported directly: `from predufo import predict_sightings`.
 
 
-### Sharing your package with others ###
+### Specifying package meta-data in `pyproject.toml` ###
+
+Much like `__init__.py` files denote that a folder is actually a Python package in the narrow sense, files like
+`pyproject.toml`[^1] denote that a folder contains both a Python package's source code and its metadata, of which
+`pyproject.toml` is arguably the most important part. A metadata specification file is always placed at the root of the
+package, and contains fields such as `project` for general package info such as name and author contacts, `build-system`
+for telling Python which backend to use for generating the package, and `project.urls` for linking to our project's
+website.
+
+The `setuptools` backend automatically recognizes our repository layout and adds the package `predufo` to the Python
+namespace (this had to be specified manually in earlier distributions of Python). We can also use `project.scripts` for
+creating mappings between the tools we want added to the command line namespace and their source code.
+
+
+## Sharing your package with others ##
+
+
+[^1]: you may have seen `setup.py` being used for package metadata specification; this configuration is now being phased
+      out in newer Python versions in lieu of `pyproject.toml`

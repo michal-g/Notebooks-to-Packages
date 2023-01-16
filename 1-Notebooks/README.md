@@ -1,4 +1,4 @@
-## Analyzing a public dataset using a Jupyter notebook ##
+# Analyzing a public dataset using a Jupyter notebook #
 
 ![](../resources/mulder-scully.jpeg)
 
@@ -14,7 +14,7 @@ environment, or use Princeton's
 [compute services](https://researchcomputing.princeton.edu/support/knowledge-base/jupyter) to run the notebook remotely.
 
 
-### Notebooks: the good side ###
+## Notebooks: the good side ##
 
 Let's consider why a notebook was so handy for our first step in this analysis. The primary advantage of notebooks is
 that they make it very easy to get started doing data science, especially for users without a lot of software
@@ -46,7 +46,7 @@ servers — including Google Colab and Princeton's own myDella site — sharing 
 easier.
 
 
-### When to consider using scripts? ###
+## When to consider using scripts? ##
 
 This is a very important question. The easiest answer is that, often, there is no reason to. We have already considered
 how convenient they make it to create and test an experiment from scratch, allowing you to separate different parts of
@@ -83,7 +83,7 @@ will take more effort than a notebook, but an experiment of sufficient scope and
 worthwhile.
 
 
-### Final remarks ###
+## Final remarks ##
 
 It is difficult to appreciate the full gravity of these considerations until one actually tries to port an experiment
 from Jupyter. Thus an important feature of the subsquent chapters of this workshop is the exposition of the intermediate

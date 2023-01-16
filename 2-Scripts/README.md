@@ -1,20 +1,20 @@
-## Converting a Jupyter notebook into a script ##
+# Converting a Jupyter notebook into a script #
 
 ![](../resources/x-files-analysis.jpeg)
 
 We've decided that our UFO sightings experiment has enough merit to warrant deeper analysis. This means that it's time
-to consider the tools available in Python to make expanding our analysis code easier, starting with command-line
+to consider the tools available in Python to make expanding our analysis code easier, starting with command line
 scripts.
 
 The scripts included in this chapter should be run from within an activated `notebooks-packages` conda environment; see
 documentation within each script and the README at the top of this repository for further details.
 
 
-### A) Converting a notebook into a script ###
+## A) Creating a command line script ##
 
 Making a script is not that hard; all we've done here is concatenate the cells of our notebook into one block of
 code, and add some small stylistic updates. We put this block in a `main()` function, and then we told the script to run
-this function when it is being invoked from the command-line (`if __name__ == '__main__':`). That is, when we use the
+this function when it is being invoked from the command line (`if __name__ == '__main__':`). That is, when we use the
 command `python A_predicting-ufo-sightings.py`, Python runs the code in the script with a global variable `__name__` set
 to the value `"__main__"`.
 
@@ -30,7 +30,7 @@ because we have neglected to actually use any of the Python features that make s
 take a look at two possible ways we can build upon both our code and our experiment.
 
 
-### B) Using argparse to parametrize our script ###
+## B) Using argparse to parametrize our script ##
 
 The command `python A_predicting-ufo-sightings.py` is conspicuous in its brevity. For all the different modications and
 tweaks we could make to our analysis, all it does run one particular version of the sightings pipeline, one particular
@@ -61,7 +61,7 @@ helps document what this experiment is testing. `argparse` automatically compile
 which can be accessed by running `python B_predicting-ufo-sightings.py -h`.
 
 
-### C) Using functions to modularize our script ###
+## C) Using functions to modularize our script ##
 
 `argparse` makes life easier for the user of your script, who can now find many different ways to modify and test our
 sightings prediction pipeline. What about making life easier for you, the designer and maintainer of this code?[^3] Our
