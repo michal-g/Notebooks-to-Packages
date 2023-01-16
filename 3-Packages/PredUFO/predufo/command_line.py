@@ -1,3 +1,4 @@
+"""Command line interfaces for predicting sightings in different regions."""
 
 import os
 import argparse
@@ -10,6 +11,8 @@ from .predict import predict_sightings
 from .utils import get_states_lbl
 
 
+# Base parser class for interfaces predicting sightings #
+# ----------------------------------------------------- #
 parent_parser = argparse.ArgumentParser(add_help=False)
 
 parent_parser.add_argument("years",
@@ -39,6 +42,7 @@ parent_parser.add_argument("--verbose", "-v", action='count', default=0)
 
 
 def predict_usa():
+    """Source code for the predUFO-USA command line interface."""
     parser = argparse.ArgumentParser(parents=[parent_parser])
 
     parser.add_argument("--states",
@@ -58,9 +62,9 @@ def predict_usa():
     else:
         states_lists = [list(VALID_STATES)]
 
-    # create a Week x State table containing total weekly sightings for each
-    # state; note that we have to take into account "missing" weeks that did
-    # not have any sightings in any states
+    # create a Time Period x State table containing total periodical sightings
+    # for each state; note that we have to take into account "missing" periods
+    # that did not have any sightings in any states
     sights_df = scrape_sightings(*args.years, args.verbose)
 
     state_table = sights_df.groupby(
@@ -80,10 +84,12 @@ def predict_usa():
         plot_totals_map(sights_df)
         animate_totals_map(state_byfreq)
 
+    # predict sightings for each given set of states
     for pred_states in states_lists:
         pred_sightings, rmse_val = predict_sightings(
-            state_byfreq, args.num_lags, args.seasonal_period, pred_states,
-            args.create_plots, args.verbose,
+            sightings=state_byfreq, num_lags=args.num_lags,
+            seasonal_period=args.seasonal_period, states=pred_states,
+            create_plots=args.create_plots, verbose=args.verbose,
             )
 
         print(f"{get_states_lbl(pred_states)}"
@@ -91,11 +97,12 @@ def predict_usa():
 
 
 def predict_canada():
+    """Source code for the predUFO-Canada command line interface."""
     parser = argparse.ArgumentParser(parents=[parent_parser])
     args = parser.parse_args()
 
-    # create a table containing total weekly sightings; note that we have to
-    # take into account "missing" weeks that did not have any sightings
+    # create a table containing sightings by time period; note that we have to
+    # take into account "missing" periods that did not have any sightings
     sights_df = scrape_sightings(*args.years, args.verbose, country='canada')
 
     date_table = sights_df.groupby('Date').size().reindex(
@@ -107,9 +114,11 @@ def predict_canada():
     canada_byfreq = date_table.groupby(
         pd.Grouper(freq=args.window)).sum().astype(int)
 
+    # predict sightings for all of Canada
     pred_sightings, rmse_val = predict_sightings(
-        canada_byfreq, args.num_lags, args.seasonal_period, None,
-        args.create_plots, args.verbose,
+        sightings=canada_byfreq, num_lags=args.num_lags,
+        seasonal_period=args.seasonal_period, states=None,
+        create_plots=args.create_plots, verbose=args.verbose,
         )
 
     print(f"{get_states_lbl(None)}\tRMSE: {format(rmse_val, '.3f')}")

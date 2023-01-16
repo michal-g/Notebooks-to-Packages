@@ -86,6 +86,17 @@ creating mappings between the tools we want added to the command line namespace 
 
 ## Sharing your package with others ##
 
+If your package is stored in a GitHub repository, it is already being shared with others — as long as your repo is
+public, anyone can download your source code. Including installation instructions in the project README (usually
+centered around running `pip install .` within the cloned repository) is usually enough for interested parties to use
+your package.
+
+You can also go one step further and make your package part of a package index such as [PyPI](https://pypi.org/).
+The advantage of this is cutting Git out of the installation process: users can instead instruct `pip` to download the
+package from the index (basically, a repository of packages) as part of the `pip install` command. More information
+about uploading a package to an index can be found in the [Python doc files](
+https://packaging.python.org/en/latest/tutorials/packaging-projects/#generating-distribution-archives).
+
 
 [^1]: you may have seen `setup.py` being used for package metadata specification; this configuration is now being phased
       out in newer Python versions in lieu of `pyproject.toml`

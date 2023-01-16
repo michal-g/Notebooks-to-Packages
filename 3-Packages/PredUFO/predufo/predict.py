@@ -21,7 +21,7 @@ from .utils import get_states_lbl
 
 
 def predict_sightings(
-        weeklies: pd.DataFrame, num_lags: int, seasonal_period: int,
+        sightings: pd.DataFrame, num_lags: int, seasonal_period: int,
         states: Optional[Iterable[str]] = None,
         create_plots: bool = False, verbose: int = 0
         ) -> tuple[list[float], float]:
@@ -43,9 +43,9 @@ def predict_sightings(
         ])
 
     if states:
-        pred_byfreq = weeklies.loc[:, list(states)].sum(axis=1)
+        pred_byfreq = sightings.loc[:, list(states)].sum(axis=1)
     else:
-        pred_byfreq = weeklies.copy()
+        pred_byfreq = sightings.copy()
 
     # assets and specially formatted objects used by the prediction pipeline
     tscv = TimeSeriesSplit(n_splits=4)

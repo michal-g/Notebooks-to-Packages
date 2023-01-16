@@ -175,12 +175,12 @@ def main():
                             color_continuous_scale=['white', 'red'])
         fig.write_image(Path("map-plots", "state-totals.png"), format='png')
 
-    # Animating weekly state totals #
-    # ----------------------------- #
+    # Animating periodical state totals #
+    # --------------------------------- #
 
-    # create a Week x State table containing total weekly sightings for each
-    # state; note that we have to take into account "missing" weeks that did
-    # not have any sightings in any states
+    # create a Time Period x State table containing total periodical sightings
+    # for each state; note that we have to take into account "missing" periods
+    # that did not have any sightings in any states
     state_table = sights_df.groupby(
         ['Date', 'State']).size().unstack().fillna(0)
 
@@ -216,8 +216,8 @@ def main():
         imageio.mimsave(Path("map-plots", "counts.gif"), plt_files,
                         duration=0.03)
 
-    # Predicting weekly state totals #
-    # ------------------------------ #
+    # Predicting periodical state totals #
+    # ---------------------------------- #
 
     pipeline = ForecasterPipeline([
         ('pre_scaler', StandardScaler()),

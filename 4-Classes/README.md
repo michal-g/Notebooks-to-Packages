@@ -1,6 +1,6 @@
-## Introducing object-oriented design ##
+# Introducing object-oriented design #
 
-![](../resources/calling.jpg)
+![](../resources/report.jpg)
 
 The final part of this workshop will recast the code in our experiment around objects with attributes and actions, which
 in Python (and most other languages supporting OOP) are called _classes_. Up to this point our we have expressed this

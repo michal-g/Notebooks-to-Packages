@@ -145,19 +145,19 @@ def plot_totals_map(sights_df):
     fig.write_image(Path("map-plots", "state-totals.png"), format='png')
 
 
-def animate_totals_map(weeklies):
+def animate_totals_map(sightings):
     plt_files = list()
 
-    # create a map of sightings by state for each week
-    for week, week_counts in weeklies.iterrows():
-        day_lbl = week.strftime('%F')
+    # create a map of sightings by state for each time period
+    for dt, freq_counts in sightings.iterrows():
+        day_lbl = dt.strftime('%F')
         state_locs = [str(x) for x in
-                      week_counts.index.get_level_values('State')]
+                      freq_counts.index.get_level_values('State')]
 
         fig = px.choropleth(locations=state_locs,
                             locationmode="USA-states",
                             title=day_lbl, scope='usa',
-                            color=week_counts.values, range_color=[0, 10],
+                            color=freq_counts.values, range_color=[0, 10],
                             color_continuous_scale=['white', 'black'])
 
         plt_file = Path("map-plots", "gif-comps", f"counts_{day_lbl}.png")
@@ -169,7 +169,7 @@ def animate_totals_map(weeklies):
                     duration=0.03)
 
 
-def predict_sightings(weeklies, states, num_lags, seasonal_period,
+def predict_sightings(sightings, states, num_lags, seasonal_period,
                       create_plots=False, verbose=0):
     """Predicting weekly state totals."""
 
@@ -190,7 +190,7 @@ def predict_sightings(weeklies, states, num_lags, seasonal_period,
 
     # assets and specially formatted objects used by the prediction pipeline
     tscv = TimeSeriesSplit(n_splits=4)
-    pred_byfreq = weeklies.loc[:, list(states)].sum(axis=1)
+    pred_byfreq = sightings.loc[:, list(states)].sum(axis=1)
     pred_dates = pred_byfreq.index.values.reshape(-1, 1)
     pred_values = pred_byfreq.values
 
@@ -282,9 +282,9 @@ def main():
     else:
         states_lists = [list(VALID_STATES)]
 
-    # create a Week x State table containing total weekly sightings for each
-    # state; note that we have to take into account "missing" weeks that did
-    # not have any sightings in any states
+    # create a Time Period x State table containing total periodical sightings
+    # for each state; note that we have to take into account "missing" periods
+    # that did not have any sightings in any states
     sights_df = scrape_sightings(*args.years, args.verbose)
 
     state_table = sights_df.groupby(
@@ -304,10 +304,12 @@ def main():
         plot_totals_map(sights_df)
         animate_totals_map(state_byfreq)
 
+    # predict sightings for each given set of states
     for pred_states in states_lists:
         pred_sightings, rmse_val = predict_sightings(
-            state_byfreq, pred_states, args.num_lags, args.seasonal_period,
-            args.create_plots, args.verbose,
+            sightings=state_byfreq, states=pred_states,
+            num_lags=args.num_lags, seasonal_period=args.seasonal_period,
+            create_plots=args.create_plots, verbose=args.verbose,
             )
 
         print(f"{get_states_lbl(pred_states)}"

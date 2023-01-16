@@ -22,20 +22,20 @@ def plot_totals_map(sights_df: pd.DataFrame) -> None:
     fig.write_image(Path("map-plots", "state-totals.png"), format='png')
 
 
-def animate_totals_map(weeklies: pd.DataFrame) -> None:
+def animate_totals_map(sightings: pd.DataFrame) -> None:
     """Animating weekly state totals."""
     plt_files = list()
 
-    # create a map of sightings by state for each week
-    for week, week_counts in weeklies.iterrows():
-        day_lbl = week.strftime('%F')
+    # create a map of sightings by state for each time period
+    for dt, freq_counts in sightings.iterrows():
+        day_lbl = dt.strftime('%F')
         state_locs = [str(x) for x in
-                      week_counts.index.get_level_values('State')]
+                      freq_counts.index.get_level_values('State')]
 
         fig = px.choropleth(locations=state_locs,
                             locationmode="USA-states",
                             title=day_lbl, scope='usa',
-                            color=week_counts.values, range_color=[0, 10],
+                            color=freq_counts.values, range_color=[0, 10],
                             color_continuous_scale=['white', 'black'])
 
         plt_file = Path("map-plots", "gif-comps", f"counts_{day_lbl}.png")
