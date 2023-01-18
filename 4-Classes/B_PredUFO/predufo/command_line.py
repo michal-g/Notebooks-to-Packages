@@ -3,8 +3,22 @@
 import os
 import argparse
 from pathlib import Path
+from typing import Optional, Iterable
 from .data import AmericanSightingsDataset, CanadianSightingsDataset
-from .utils import get_states_lbl
+
+
+def get_states_lbl(states: Optional[Iterable[str]]) -> str:
+    """Create a label for a state or a set of states."""
+
+    if states is None:
+        states_lbl = 'Canada'
+
+    elif len(list(states)) == 51:
+        states_lbl = 'All States'
+    else:
+        states_lbl = '+'.join(states)
+
+    return states_lbl
 
 
 # Base parser class for interfaces predicting sightings #
