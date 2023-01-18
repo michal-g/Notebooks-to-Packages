@@ -24,9 +24,21 @@ delve into creating a OOP-based version of our UFO sightings pipeline.
 
 We have created two families of classes: `SightingsDatabase` and `Sightings`. The rationale behind this is that
 there are fundamentally two objects that are used in our pipeline: the dataset of all valid sightings that we could
-consider in our analysis, and the slice of this dataset that we use to train a particular predictor. A good class design
-also does a good job of encapsulating the relationship between classes in a succinct way: here, we see that databases
-produce sightings using `get_sightings()`.
+consider in our analysis, and the sightings totals across a set of time periods that we use to train a particular
+predictor. A good class design also does a good job of encapsulating the relationship between classes in a succinct way:
+here, we see that databases produce sightings using `get_sightings()`.
+
+The steps of our pipeline can now be expressed in terms of actions done by instances of these classes. We define a
+special class method `__init__()` that is called every time a new class member is created:
+`sights_data = SightingsDataset(*args.years, ...)`. This is where we create the attributes of the object: the static
+properties that each member of the class is expected to have defined (and to be defined by). In our case we also handle
+data scraping during instantiation, as we know we will only want to read in each range of years exactly once.
+
+In addition to producing a sightings totals given a frequency in `get_sightings()`, the `SightingsDataset` class can
+also be asked to produce a static map of the total sightings by state using `plot_totals_map()`. We take advantage of
+the fact that each dataset instance has all the data we need to do our analyses under `self.sights_data`. On the other
+hand, a `Sightings` instance only has the totals for one particular choice of measurement frequency, so we use it for
+making our animated totals map and for training the prediction algorithm, which are dependent on this choice.
 
 
 ## B) Refactoring our class design ##

@@ -29,9 +29,19 @@ from skits.feature_extraction import (AutoregressiveTransformer,
 
 
 class Sightings:
+    """Total UFO sightings across a range of time windows."""
 
     def __init__(self,
                  freq_table: pd.DataFrame, freq: str, country: str) -> None:
+        """
+        Arguments
+        ---------
+        freq_table: a day x region table of sightings
+        freq:       a time frequency to use when calculating the sighting sums
+                    any offset alias supported by pandas is supported here
+        country:    which country the sightings occurred in
+
+        """
         if len(freq_table.shape) == 2:
             freq_sums = freq_table.groupby(
                 pd.Grouper(axis=0, freq=freq, sort=True)).sum().astype(int)
@@ -150,6 +160,18 @@ class Sightings:
 
 
 class SightingsDataset:
+    """A repository of downloaded UFO sightings records.
+
+    Attributes
+    ---------
+    first_year, last_year (int):  the range of years (inclusive) whose
+                                  sightings will be considered
+    country (str):  which nation's sightings to use
+                    only 'usa' and 'canada' are currently supported
+    verbosity (int):    show messages about the sightings found?
+    self.sights_data (pd.DataFrame): a table of downloaded sightings, with one
+                                     row per sighting
+    """
 
     # we will be very careful to filter sightings that can be mapped to states
     VALID_STATES = {

@@ -38,14 +38,16 @@ across the other modules. How should these be arranged within the package folder
 demonstrates a very simple structure for use in our case:
 
 ```
-PredUFO
-+-- predufo
+PredUFO/
++-- predufo/
     +-- __init__.py
     +-- data.py
     +-- plot.py
     +-- predict.py
     +-- utils.py
     +-- command_line.py
++-- demos/
+    +-- predicting-ufo-sightings.ipynb
 +-- pyproject.toml
 ```
 
@@ -53,6 +55,30 @@ There is a folder, `predufo`, which contains the source code for our analysis; w
 in the root package directory `PredUFO`. The root directory will usually contain other meta-data for the package in
 addition to `pyproject.toml`, such as licensing information and READMEs, which we omit here for the sake of showing a
 minimal working example.
+
+Another common folder structure used in packages looks like this:
+
+```
+PredUFO/
++-- src/
+    +-- predufo/
+        +-- __init__.py
+        +-- data.py
+        +-- plot.py
+        +-- predict.py
+        +-- utils.py
+        +-- command_line.py
++-- demos/
+    +-- predicting-ufo-sightings.ipynb
++-- pyproject.toml
+```
+
+This is called a "src layout", as opposed to the flat layout we use above. It is
+[somewhat safer](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/) to create a larger
+separation between the code in your package that will be imported by other packages (`from predufo.data import
+scrape_sightings as scrape_ufo_sightings`), but this is unlikely to make a difference unless there are multiple
+multiple developers working on your code. The flat layout generally makes more sense for packages based around command
+line tools as opposed to importable Python code.
 
 Let's consider some of the other new files we have created for our package and what they do.
 
@@ -81,7 +107,8 @@ website.
 
 The `setuptools` backend automatically recognizes our repository layout and adds the package `predufo` to the Python
 namespace (this had to be specified manually in earlier distributions of Python). We can also use `project.scripts` for
-creating mappings between the tools we want added to the command line namespace and their source code.
+creating mappings between the tools we want added to the command line namespace and their source code. The flat project
+structure we chose above entails explicitly instructing Python to use the `predufo` folder as the root package.
 
 
 ## Sharing your package with others ##

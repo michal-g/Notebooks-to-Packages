@@ -15,7 +15,7 @@ the other tools at your disposal as a Python developer.
 ## Table of contents ##
 
 1. **Notebooks**
-    - introducing predicting UFO sightings, as implemented in a Jupyter notebook
+    - predicting UFO sightings, as implemented in a Jupyter notebook
     - the advantages and disadvantages of notebooks
     - when in the development of an experiment to consider moving beyond a notebook
 
@@ -28,7 +28,7 @@ the other tools at your disposal as a Python developer.
 
 3. **Packages**
     - how packages are designed in Python
-    - possible ways to structure your packahe
+    - possible ways to structure your package
     - creating package infrastructure
     - sharing your package with the world 
 
@@ -36,6 +36,7 @@ the other tools at your disposal as a Python developer.
 4. **Classes**
     - applying object-oriented programming within a package
     - how OOP affects package structure
+    - refactoring a class design to introduce hierarchical class structure
 
 
 ## Preparing for the workshop ##
