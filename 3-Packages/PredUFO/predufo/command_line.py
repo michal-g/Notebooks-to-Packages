@@ -62,10 +62,14 @@ def predict_usa():
     else:
         states_lists = [list(VALID_STATES)]
 
+    if args.verbose:
+        print("Reading in American sightings from HTML inputs...")
+
     # create a Time Period x State table containing total periodical sightings
     # for each state; note that we have to take into account "missing" periods
     # that did not have any sightings in any states
-    sights_df = scrape_sightings(*args.years, args.verbose)
+    sights_df = scrape_sightings(*args.years,
+                                 country='usa', verbose=args.verbose)
 
     state_table = sights_df.groupby(
         ['Date', 'State']).size().unstack().fillna(0)
@@ -79,10 +83,16 @@ def predict_usa():
     state_byfreq = state_table.groupby(
         pd.Grouper(axis=0, freq=args.window, sort=True)).sum().astype(int)
 
+    if args.verbose:
+        print("Producing plots of sightings by state...")
+
     if args.create_plots:
         os.makedirs(Path("map-plots", "gif-comps"), exist_ok=True)
         plot_totals_map(sights_df)
         animate_totals_map(state_byfreq)
+
+    if args.verbose:
+        print("Training American sightings prediction algorithms...")
 
     # predict sightings for each given set of states
     for pred_states in states_lists:
@@ -101,9 +111,13 @@ def predict_canada():
     parser = argparse.ArgumentParser(parents=[parent_parser])
     args = parser.parse_args()
 
+    if args.verbose:
+        print("Reading in Canadian sightings from HTML inputs...")
+
     # create a table containing sightings by time period; note that we have to
     # take into account "missing" periods that did not have any sightings
-    sights_df = scrape_sightings(*args.years, args.verbose, country='canada')
+    sights_df = scrape_sightings(*args.years,
+                                 country='canada', verbose=args.verbose)
 
     date_table = sights_df.groupby('Date').size().reindex(
         index=pd.date_range(f"01-01-{args.years[0]}",
@@ -113,6 +127,9 @@ def predict_canada():
 
     canada_byfreq = date_table.groupby(
         pd.Grouper(freq=args.window)).sum().astype(int)
+
+    if args.verbose:
+        print("Training a Canadian sightings prediction algorithm...")
 
     # predict sightings for all of Canada
     pred_sightings, rmse_val = predict_sightings(

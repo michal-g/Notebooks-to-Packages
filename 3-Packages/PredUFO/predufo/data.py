@@ -1,3 +1,4 @@
+"""Tools for downloading UFO sightings records from public datasets."""
 
 import re
 import requests
@@ -17,9 +18,18 @@ VALID_STATES = {
 
 
 def scrape_sightings(first_year: int, last_year: int,
-                     verbose: int, country: str = 'usa') -> pd.DataFrame:
-    """Reading in raw data from UFO sightings website."""
+                     country: str = 'usa', verbose: int = 0) -> pd.DataFrame:
+    """Reading in raw data from UFO sightings website.
 
+    Arguments
+    ---------
+    first_year, last_year:  the range of years (inclusive) whose sightings will
+                            be considered
+    country:    which nation's sightings to use
+                only 'usa' and 'canada' are currently supported
+    verbose:    show messages about the sightings found?
+
+    """
     # initialize assets for scraping the reports portal
     base_url = 'https://nuforc.org/webreports'
     grab = requests.get('/'.join([base_url, 'ndxevent.html']))
@@ -82,7 +92,7 @@ def scrape_sightings(first_year: int, last_year: int,
     sights_df['Date'] = pd.to_datetime(
         [dt.split()[0] for dt in sights_df['Date']], format='%m/%d/%y')
 
-    if verbose:
+    if verbose > 1:
         print(f"Found {sights_df.shape[0]} unique sightings!")
 
     return sights_df

@@ -1,3 +1,4 @@
+"""Predicting UFO sighting counts using machine learning algorithms."""
 
 import numpy as np
 import pandas as pd
@@ -25,8 +26,20 @@ def predict_sightings(
         states: Optional[Iterable[str]] = None,
         create_plots: bool = False, verbose: int = 0
         ) -> tuple[list[float], float]:
-    """Predicting weekly state totals."""
+    """Predicting total sightings using time series auto-regression.
 
+    Arguments
+    ---------
+    sightings:  period x state table of sighting counts across time windows
+    num_lags:   how many of the preceding time points to use as features for
+                making predictions on the current time period
+    seasonal_period:    the number of periods used for seasonal normalization
+    states:     if given, which states to consider out of the ones given
+
+    create_plots:   save a plot evaluating model performance?
+    verbose:    print messages about model training?
+
+    """
     pipeline = ForecasterPipeline([
         ('pre_scaler', StandardScaler()),
 

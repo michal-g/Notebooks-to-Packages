@@ -91,6 +91,9 @@ def scrape_sightings(first_year, last_year, verbose):
                   for year in range(first_year, last_year + 1)])
         )
 
+    if verbose:
+        print("Reading in sightings from HTML inputs...")
+
     # for each link to a month's data, create assets for scraping that table
     for month_link in BeautifulSoup(grab.text, 'html.parser')(
             'a', string=re.compile(f"[0-9]{{2}}\/{year_regex}")):
@@ -130,7 +133,7 @@ def scrape_sightings(first_year, last_year, verbose):
     sights_df['Date'] = pd.to_datetime(
         [dt.split()[0] for dt in sights_df['Date']], format='%m/%d/%y')
 
-    if verbose:
+    if verbose > 1:
         print(f"Found {sights_df.shape[0]} unique sightings!")
 
     return sights_df
@@ -150,6 +153,7 @@ def plot_totals_map(sights_df):
 
 
 def animate_totals_map(sightings):
+    """Plotting a gif of periodical state totals."""
     plt_files = list()
 
     # create a map of sightings by state for each time period
@@ -232,6 +236,7 @@ def predict_sightings(sightings, states, num_lags, seasonal_period,
 
 
 def plot_predictions(date_values, real_values, regr_values):
+    """Utility function for plotting predicted sightings vs. actual counts."""
     fig, ax = plt.subplots(figsize=(10, 6))
 
     for dates, reals, regrs in zip(date_values, real_values, regr_values):

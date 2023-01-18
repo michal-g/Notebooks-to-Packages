@@ -1,3 +1,4 @@
+"""Plots describing sightings data and evaluating prediction performance."""
 
 import numpy as np
 import pandas as pd
@@ -10,7 +11,13 @@ plt.rcParams["figure.figsize"] = (14, 9)
 
 
 def plot_totals_map(sights_df: pd.DataFrame) -> None:
-    """Mapping state totals across entire time period."""
+    """Mapping state totals across entire time period.
+
+    Arguments
+    ---------
+    sights_df:  table of individual sightings, one per row
+
+    """
     state_totals = sights_df.groupby('State').size()
 
     fig = px.choropleth(locations=[str(x) for x in state_totals.index],
@@ -23,7 +30,13 @@ def plot_totals_map(sights_df: pd.DataFrame) -> None:
 
 
 def animate_totals_map(sightings: pd.DataFrame) -> None:
-    """Animating weekly state totals."""
+    """Plotting a gif of periodical state totals.
+
+    Arguments
+    ---------
+    sightings:  period x state table of sighting counts across time windows
+
+    """
     plt_files = list()
 
     # create a map of sightings by state for each time period
@@ -49,7 +62,19 @@ def animate_totals_map(sightings: pd.DataFrame) -> None:
 
 def plot_predictions(date_values: list[np.array], real_values: list[np.array],
                      regr_values: list[np.array]) -> None:
-    """Plotting predicted sighting counts versus historical counts. """
+    """Plotting predicted sighting counts versus historical counts.
+
+    The arguments to this function are lists of indices, Xs, and ys generated
+    during learning cross-validation: thus the ith element of each list
+    corresponds to the testing values returned from the ith c-v fold.
+
+    Arguments
+    ---------
+    date_values:    the date indices used for these sightings
+    real_values:    the historical sighting counts for these dates
+    regr_values:    the sighting counts predicted by our regressor
+
+    """
     fig, ax = plt.subplots(figsize=(10, 6))
 
     for dates, reals, regrs in zip(date_values, real_values, regr_values):
