@@ -1,5 +1,9 @@
 """Applying autoregression to predict the # of UFOs that were seen in the US.
 
+This script pulls down UFO sightings from the National UFO Reporting Center
+website, and trains a time series regressor to predict the number of sightings
+across the United States in the 1990s.
+
 Example Usages
 --------------
 Really the only way to run this script is:
@@ -59,6 +63,8 @@ def main():
     col_labels = ['Date', 'City', 'State', 'Country', 'Shape', 'Duration',
                   'Summary', 'Posted', 'Images']
 
+    print("Reading in sightings from HTML inputs...")
+
     # for each link to a month's data, create assets for scraping that table
     for month_link in BeautifulSoup(grab.text, 'html.parser')(
             'a', string=re.compile("[0-9]{2}\/199[0-9]")):
@@ -103,6 +109,7 @@ def main():
 
     # Mapping state totals across entire time period #
     # ---------------------------------------------- #
+    print("Producing plots of sightings by state...")
 
     # calculate totals across all time periods for each state and create a
     # local directory for saving plots
@@ -165,7 +172,10 @@ def main():
         ('regressor', LinearRegression())
         ])
 
+    print("Training a sightings prediction algorithm...")
+
     # assets and specially formatted objects used by the prediction pipeline
+    # scikit-learn wants Xs to be 2-dimensional and ys to be 1-dimensional
     tscv = TimeSeriesSplit(n_splits=4)
     cali_weeklies = state_weeklies.CA
     cali_dates = cali_weeklies.index.values.reshape(-1, 1)

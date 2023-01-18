@@ -1,19 +1,23 @@
 """Applying autoregression to predict the # of UFOs that were seen in the US.
 
+This script pulls down UFO sightings from the National UFO Reporting Center
+website, and trains a time series regressor to predict the number of sightings
+in the United States across given ranges of years and states.
+
 Example Usages
 --------------
-Predicting total US weekly sightings across the 90s:
+Predict total US weekly sightings across the 90s:
     python C_predicting-ufo-sightings.py 1990 1999
 
-Predicting California weekly sightings across the 80s:
+Predict California weekly sightings across the 80s:
     python C_predicting-ufo-sightings.py 1980 1989 --states CA
 
-Predicting New England monthly sightings for five years with plots:
+Predict New England monthly sightings for five years with plots:
     python C_predicting-ufo-sightings.py 1987 1991 \
                 --states ME MA VT NH RI --window M \
                 --num-lags=12 --seasonal-period=12
 
-Predicting biweekly Oregonian sightings since 1950:
+Predict biweekly Oregonian sightings since 1950:
     python C_predicting-ufo-sightings.py 1950 2030 --states OR --window 2W
 
 """
@@ -189,6 +193,7 @@ def predict_sightings(sightings, states, num_lags, seasonal_period,
         ])
 
     # assets and specially formatted objects used by the prediction pipeline
+    # scikit-learn wants Xs to be 2-dimensional and ys to be 1-dimensional
     tscv = TimeSeriesSplit(n_splits=4)
     pred_byfreq = sightings.loc[:, list(states)].sum(axis=1)
     pred_dates = pred_byfreq.index.values.reshape(-1, 1)

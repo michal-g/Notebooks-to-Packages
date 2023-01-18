@@ -48,6 +48,7 @@ def predict_sightings(
         pred_byfreq = sightings.copy()
 
     # assets and specially formatted objects used by the prediction pipeline
+    # scikit-learn wants Xs to be 2-dimensional and ys to be 1-dimensional
     tscv = TimeSeriesSplit(n_splits=4)
     pred_dates = pred_byfreq.index.values.reshape(-1, 1)
     pred_values = pred_byfreq.values

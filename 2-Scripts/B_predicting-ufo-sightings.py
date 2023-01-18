@@ -1,19 +1,27 @@
 """Applying autoregression to predict the # of UFOs that were seen in the US.
 
+This script pulls down UFO sightings from the National UFO Reporting Center
+website, and trains a time series regressor to predict the number of sightings
+in the United States across a given range of years and states.
+
+See
+https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
+for the list of valid frequency aliases to use for `window`.
+
 Example Usages
 --------------
-Predicting total US weekly sightings across the 90s:
+Predict total US weekly sightings across the 90s:
     python B_predicting-ufo-sightings.py 1990 1999
 
-Predicting California weekly sightings across the 80s:
+Predict California weekly sightings across the 80s:
     python B_predicting-ufo-sightings.py 1980 1989 --states CA
 
-Predicting New England monthly sightings for five years with plots:
-    python B_predicting-ufo-sightings.py 1987 1991 \
+Predict New England monthly sightings and make plots:
+    python B_predicting-ufo-sightings.py 1977 1991 \
                 --states ME MA VT NH RI --window M \
-                --num-lags=12 --seasonal-period=12
+                --num-lags=12 --seasonal-period=12 -p
 
-Predicting biweekly Oregonian sightings since 1950:
+Predict biweekly Oregonian sightings since 1950:
     python B_predicting-ufo-sightings.py 1950 2030 --states OR --window 2W
 
 """
@@ -108,6 +116,9 @@ def main():
     col_labels = ['Date', 'City', 'State', 'Country', 'Shape', 'Duration',
                   'Summary', 'Posted', 'Images']
 
+    if args.verbose:
+        print("Reading in sightings from HTML inputs...")
+
     # create a regular expression matching our range of years
     year_regex = "({})".format(
         '|'.join([str(year)
@@ -156,11 +167,14 @@ def main():
     sights_df['Date'] = pd.to_datetime(
         [dt.split()[0] for dt in sights_df['Date']], format='%m/%d/%y')
 
-    if args.verbose:
+    if args.verbose > 1:
         print(f"Found {sights_df.shape[0]} unique sightings!")
 
     # Mapping state totals across entire time period #
     # ---------------------------------------------- #
+
+    if args.verbose:
+        print("Producing plots of sightings by state...")
 
     # calculate totals across all time periods for each state and create a
     # local directory for saving plots
@@ -234,13 +248,17 @@ def main():
         ('regressor', LinearRegression())
         ])
 
+    if args.verbose:
+        print("Training a sightings prediction algorithm...")
+
     # assets and specially formatted objects used by the prediction pipeline
+    # scikit-learn wants Xs to be 2-dimensional and ys to be 1-dimensional
     tscv = TimeSeriesSplit(n_splits=4)
     pred_byfreq = state_byfreq.loc[:, list(args.states)].sum(axis=1)
     pred_dates = pred_byfreq.index.values.reshape(-1, 1)
     pred_values = pred_byfreq.values
 
-    if args.verbose > 1:
+    if args.verbose > 2:
         if len(args.states) == 51:
             states_lbl = 'All States'
         else:
