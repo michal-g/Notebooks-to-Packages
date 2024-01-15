@@ -59,3 +59,6 @@ cd Notebooks-to-Packages
 conda env create -f environment.yml
 conda activate notebooks-packages
 ```
+
+The dataset `nuforc_events_complete.csv` was downloaded from Link Wentz' [repo](github.com/LinkWentz/NUFORC-Dataset) on
+January 12, 2024.
