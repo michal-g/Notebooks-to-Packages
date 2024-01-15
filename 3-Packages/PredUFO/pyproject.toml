@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PredUFO"
-version = "0.0.1-a0"
+version = "2.0.0-a0"
 authors = [
     { name="Michal Grzadkowski", email="mgrzad@princeton.edu" },
     ]
@@ -16,6 +16,9 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     ]
+
+dependencies = ["pandas", "plotly", "ipython", "imageio",
+                "matplotlib", "scikit-learn", "skits"]
 
 [project.urls]
 "Homepage" = "https://github.com/michal-g/Notebooks-to-Packages"

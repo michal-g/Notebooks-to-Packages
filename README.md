@@ -51,14 +51,22 @@ out the course repository:
 
 ```git clone git@github.com:michal-g/Notebooks-to-Packages.git```
 
-In the newly-created folder `Notebooks-to-Packages` you'll find a file specifying a conda environment; we create the
-environment and activate it using:
+In the newly-created folder `Notebooks-to-Packages` you'll find the workshop materials including the code; we create the
+the environment to run the code and activate it using:
 
 ```
-cd Notebooks-to-Packages
-conda env create -f environment.yml
+conda create --name notebooks-packages python=3.9 pandas plotly ipython imageio matplotlib scikit-learn
 conda activate notebooks-packages
+pip install skits
 ```
+
+
+## Past versions ##
+
+ - `v1` presented as part of Princeton Wintersession 2023
+
+
+## Notes ##
 
 The dataset `nuforc_events_complete.csv` was downloaded from Link Wentz' [repo](github.com/LinkWentz/NUFORC-Dataset) on
 January 12, 2024.
