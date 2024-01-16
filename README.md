@@ -55,9 +55,9 @@ In the newly-created folder `Notebooks-to-Packages` you'll find the workshop mat
 the environment to run the code and activate it using:
 
 ```
-conda create --name notebooks-packages python=3.9 pandas plotly ipython imageio matplotlib scikit-learn
+conda create --name notebooks-packages -c conda-forge python=3.9 pandas plotly jupyter imageio matplotlib \
+                                                                 'scikit-learn<1.3' nbconvert nbformat
 conda activate notebooks-packages
-pip install skits
 ```
 
 

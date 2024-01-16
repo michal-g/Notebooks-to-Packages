@@ -18,6 +18,8 @@ this function when it is being invoked from the command line (`if __name__ == '_
 command `python A_predicting-ufo-sightings.py`, Python runs the code in the script with a global variable `__name__` set
 to the value `"__main__"`.
 
+We can also use the `nbconvert` tool — installed here as a Python package — to do this conversion for us.
+
 Did we gain anything from this? Not really! It's now easier to run this experiment from start to finish with one push of
 a button, but it's not like Jupyter notebooks make that particularly difficult either. We are no longer constrained to
 running our analysis on a Jupyter server, and we can run this script in any terminal with the right conda installation,
