@@ -18,7 +18,11 @@ this function when it is being invoked from the command line (`if __name__ == '_
 command `python A_predicting-ufo-sightings.py`, Python runs the code in the script with a global variable `__name__` set
 to the value `"__main__"`.
 
-We can also use the `nbconvert` tool — installed here as a Python package — to do this conversion for us.
+We can also use the `nbconvert` tool — installed here as a Python package — to help with this conversion:
+```jupyter nbconvert --to script 1-Notebooks/predicting-ufo-sightings.ipynb```.
+The output of this can be found at `predicting-ufo-sightings.txt` — note that this literally does just the
+concatenation, and so structuring the code as a Python script is left to the user, and it may contain bugs due to
+commands or syntax only used by Jupyter.
 
 Did we gain anything from this? Not really! It's now easier to run this experiment from start to finish with one push of
 a button, but it's not like Jupyter notebooks make that particularly difficult either. We are no longer constrained to

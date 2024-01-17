@@ -56,8 +56,9 @@ the environment to run the code and activate it using:
 
 ```
 conda create --name notebooks-packages -c conda-forge python=3.9 pandas plotly jupyter imageio matplotlib \
-                                                                 'scikit-learn<1.3' nbconvert nbformat
+                                                                 'scikit-learn<1.1' nbconvert nbformat
 conda activate notebooks-packages
+pip install kaleido skits
 ```
 
 
