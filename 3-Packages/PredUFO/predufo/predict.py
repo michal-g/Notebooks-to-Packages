@@ -4,25 +4,20 @@ import numpy as np
 import pandas as pd
 from typing import Optional, Iterable
 
-from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
-from sklearn.svm import SVR
-from sklearn.ensemble import RandomForestRegressor
-
+from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import FeatureUnion
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import TimeSeriesSplit
-
 from skits.preprocessing import ReversibleImputer
 from skits.pipeline import ForecasterPipeline
-from skits.feature_extraction import (AutoregressiveTransformer,
-                                      SeasonalTransformer)
+from skits.feature_extraction import AutoregressiveTransformer
 
 from .plot import plot_predictions
 from .utils import get_states_lbl
 
 
 def predict_sightings(
-        sightings: pd.DataFrame, num_lags: int, seasonal_period: int,
+        sightings: pd.DataFrame, num_lags: int,
         states: Optional[Iterable[str]] = None,
         create_plots: bool = False, verbose: int = 0
         ) -> tuple[list[float], float]:
@@ -42,14 +37,8 @@ def predict_sightings(
     """
     pipeline = ForecasterPipeline([
         ('pre_scaler', StandardScaler()),
-
         ('features', FeatureUnion([
-            ('ar_features', AutoregressiveTransformer(
-                num_lags=num_lags)),
-            ('seasonal_features', SeasonalTransformer(
-                seasonal_period=seasonal_period)),
-            ])),
-
+            ('ar_features', AutoregressiveTransformer(num_lags=num_lags))])),
         ('post_feature_imputer', ReversibleImputer()),
         ('post_feature_scaler', StandardScaler()),
         ('regressor', LinearRegression())
@@ -58,7 +47,7 @@ def predict_sightings(
     if states:
         pred_byfreq = sightings.loc[:, list(states)].sum(axis=1)
     else:
-        pred_byfreq = sightings.copy()
+        pred_byfreq = sightings.sum(axis=1)
 
     # assets and specially formatted objects used by the prediction pipeline
     # scikit-learn wants Xs to be 2-dimensional and ys to be 1-dimensional

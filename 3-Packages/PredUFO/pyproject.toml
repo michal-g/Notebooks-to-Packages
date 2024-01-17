@@ -17,8 +17,8 @@ classifiers = [
     "Operating System :: OS Independent",
     ]
 
-dependencies = ["pandas", "plotly", "ipython", "imageio",
-                "matplotlib", "scikit-learn", "skits"]
+dependencies = ["pandas", "plotly", "jupyter", "imageio", "matplotlib",
+                "scikit-learn<1.1", "nbconvert", "nbformat"]
 
 [project.urls]
 "Homepage" = "https://github.com/michal-g/Notebooks-to-Packages"
@@ -29,3 +29,6 @@ predUFO-Canada = "predufo.command_line:predict_canada"
 
 [tool.setuptools]
 packages = ["predufo"]
+
+[tool.setuptools.package-data]
+"*" = ["*.csv"]

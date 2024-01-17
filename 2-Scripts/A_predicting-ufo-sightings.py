@@ -46,9 +46,11 @@ def main():
 
     # create a table for the sightings data and only consider
     # valid unique sightings
-    sights_df = pd.read_csv('../nuforc_events_complete.csv',
-                            usecols=['event_time', 'city', 'state',
-                                     'shape', 'duration', 'summary'])
+    sights_df = pd.read_csv(
+        os.path.join(os.path.dirname(__file__),
+                     '../nuforc_events_complete.csv'),
+        usecols=['event_time', 'city', 'state', 'shape', 'duration', 'summary']
+        )
 
     sights_df = sights_df.loc[sights_df.state.isin(VALID_STATES), :]
 

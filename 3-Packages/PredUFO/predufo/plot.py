@@ -18,13 +18,14 @@ def plot_totals_map(sights_df: pd.DataFrame) -> None:
     sights_df:  table of individual sightings, one per row
 
     """
-    state_totals = sights_df.groupby('State').size()
+    state_totals = sights_df.sum(axis=1)
 
     fig = px.choropleth(locations=[str(x) for x in state_totals.index],
                         scope="usa", locationmode="USA-states",
                         color=state_totals.values,
                         range_color=[0, state_totals.max()],
                         color_continuous_scale=['white', 'red'])
+    fig.update_layout(coloraxis_colorbar=dict(title="Sightings"))
 
     fig.write_image(Path("map-plots", "state-totals.png"), format='png')
 
@@ -41,23 +42,21 @@ def animate_totals_map(sightings: pd.DataFrame) -> None:
 
     # create a map of sightings by state for each time period
     for dt, freq_counts in sightings.iterrows():
-        day_lbl = dt.strftime('%F')
-        state_locs = [str(x) for x in
-                      freq_counts.index.get_level_values('State')]
+        state_locs = [str(x) for x in freq_counts.index]
 
         fig = px.choropleth(locations=state_locs,
                             locationmode="USA-states",
-                            title=day_lbl, scope='usa',
+                            title=dt, scope='usa',
                             color=freq_counts.values, range_color=[0, 10],
-                            color_continuous_scale=['white', 'black'])
+                            color_continuous_scale=['white', 'red'])
+        fig.update_layout(coloraxis_colorbar=dict(title="Sightings"))
 
-        plt_file = Path("map-plots", "gif-comps", f"counts_{day_lbl}.png")
+        plt_file = Path("map-plots", "gif-comps", f"counts_{dt}.png")
         fig.write_image(plt_file, format='png')
         plt_files += [imageio.v2.imread(plt_file)]
 
     # create an animation using the individual weekly maps
-    imageio.mimsave(Path("map-plots", "counts.gif"), plt_files,
-                    duration=0.03)
+    imageio.mimsave(Path("map-plots", "counts.gif"), plt_files, duration=0.03)
 
 
 def plot_predictions(date_values: list[np.array], real_values: list[np.array],

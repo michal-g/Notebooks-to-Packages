@@ -1,10 +1,7 @@
 """Tools for downloading UFO sightings records from public datasets."""
 
-import re
-import requests
-from bs4 import BeautifulSoup
+import os
 import pandas as pd
-import itertools
 
 
 # we will be very careful to filter sightings that can be mapped to states
@@ -16,9 +13,13 @@ VALID_STATES = {
     'UT', 'VA', 'VT', 'WA', 'WI', 'WV', 'WY'
     }
 
+VALID_PROVINCES = {
+    'ON', 'MB', 'BC', 'AB', 'PQ', 'SK', 'NB', 'NS', 'NF', 'YT', 'NT', 'PE'
+    }
 
-def scrape_sightings(first_year: int, last_year: int,
-                     country: str = 'usa', verbose: int = 0) -> pd.DataFrame:
+
+def parse_sightings(first_year: int, last_year: int,
+                    country: str = 'usa', verbose: int = 0) -> pd.DataFrame:
     """Reading in raw data from UFO sightings website.
 
     Arguments
@@ -31,25 +32,31 @@ def scrape_sightings(first_year: int, last_year: int,
 
     """
 
-    # create a table for the sightings data and only consider unique sightings
-    sights_df = pd.DataFrame(sightings).drop_duplicates()
+    sights_df = pd.read_csv(
+        os.path.join(os.path.dirname(__file__), "nuforc_events_complete.csv"),
+        usecols=['event_time', 'city', 'state', 'shape', 'duration', 'summary']
+        )
 
     # get valid sightings for given country
     if country == 'usa':
-        sights_df = sights_df.loc[(sights_df.Country == 'USA')
-                                  & sights_df.State.isin(VALID_STATES), :]
+        sights_df = sights_df.loc[sights_df.state.isin(VALID_STATES), :]
 
     elif country == 'canada':
-        sights_df = sights_df.loc[sights_df.Country == 'Canada', :]
+        sights_df = sights_df.loc[sights_df.state.isin(VALID_PROVINCES), :]
 
     else:
         raise ValueError(f"Unrecognized country for sightings: `{country}`!")
 
     # parse the date information into more useful format
-    sights_df['Date'] = pd.to_datetime(
-        [dt.split()[0] for dt in sights_df['Date']], format='%m/%d/%y')
+    sights_df['event_time'] = pd.to_datetime(
+        sights_df.event_time, format="%Y-%m-%dT%H:%M:%SZ", errors='coerce')
+    sights_df = sights_df.loc[~sights_df['event_time'].isna(), :]
+
+    yearly_sightings = sights_df.groupby(
+        [sights_df.event_time.dt.year, 'state']).size().unstack().fillna(0)
+    yearly_sightings.reindex(range(first_year, last_year + 1), fill_value=0.)
 
     if verbose > 1:
-        print(f"Found {sights_df.shape[0]} unique sightings!")
+        print(f"Found {yearly_sightings.values.sum()} unique sightings!")
 
-    return sights_df
+    return yearly_sightings
