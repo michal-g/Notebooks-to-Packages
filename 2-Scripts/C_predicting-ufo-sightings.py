@@ -6,45 +6,33 @@ in the United States across given ranges of years and states.
 
 Example Usages
 --------------
-Predict total US weekly sightings across the 90s:
+Predict total US sightings across the 90s:
     python C_predicting-ufo-sightings.py 1990 1999
 
-Predict California weekly sightings across the 80s:
+Predict California sightings across the 80s:
     python C_predicting-ufo-sightings.py 1980 1989 --states CA
 
-Predict New England monthly sightings for five years with plots:
+Predict New England ightings for five years with plots:
     python C_predicting-ufo-sightings.py 1987 1991 \
-                --states ME MA VT NH RI --window M \
-                --num-lags=12 --seasonal-period=12
+                --states ME MA VT NH RI --num-lags=2
 
-Predict biweekly Oregonian sightings since 1950:
-    python C_predicting-ufo-sightings.py 1950 2030 --states OR --window 2W
+Predict Oregonian sightings since 1950:
+    python C_predicting-ufo-sightings.py 1950 2030 --states OR --num-lags=10
 
 """
-
 import os
 import argparse
-import itertools
-import re
-import requests
-from bs4 import BeautifulSoup
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
-from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
-from sklearn.svm import SVR
-from sklearn.ensemble import RandomForestRegressor
-
+from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import FeatureUnion
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import TimeSeriesSplit
-
 from skits.preprocessing import ReversibleImputer
 from skits.pipeline import ForecasterPipeline
-from skits.feature_extraction import (AutoregressiveTransformer,
-                                      SeasonalTransformer)
+from skits.feature_extraction import AutoregressiveTransformer
 
 import imageio
 import plotly.express as px
@@ -73,7 +61,7 @@ def get_states_lbl(states):
     return states_lbl
 
 
-def parse_sightings(first_year, last_year, verbose):
+def parse_sightings(start_year, end_year, states_lists, verbose):
     """Reading in raw data from UFO sightings website."""
 
     # create a table for the sightings data and only consider
@@ -82,71 +70,69 @@ def parse_sightings(first_year, last_year, verbose):
                             usecols=['event_time', 'city', 'state',
                                      'shape', 'duration', 'summary'])
 
-    sights_df = sights_df.loc[sights_df.state.isin(VALID_STATES), :]
+    states = {state for states_list in states_lists for state in states_list}
+    sights_df = sights_df.loc[sights_df.state.isin(states), :]
 
     # parse the date information into a more useful format
-    sights_df['event_time'] = pd.to_datetime(sights_df.event_time,
-                                             format="%Y-%m-%dT%H:%M:%SZ", errors='coerce')
+    sights_df['event_time'] = pd.to_datetime(
+        sights_df.event_time, format="%Y-%m-%dT%H:%M:%SZ", errors='coerce')
     sights_df = sights_df.loc[~sights_df['event_time'].isna(), :]
 
+    state_yearlies = sights_df.groupby(
+        [sights_df.event_time.dt.year, 'state']).size().unstack().fillna(0)
+    state_yearlies.reindex(range(start_year, end_year + 1), fill_value=0.)
+
     if verbose > 1:
-        print(f"Found {sights_df.shape[0]} unique sightings!")
+        print(f"Found {state_yearlies.values.sum()} unique sightings!")
 
-    return sights_df
+    return state_yearlies
 
 
-def plot_totals_map(sights_df):
+def plot_totals_map(yearly_sightings):
     """Mapping state totals across entire time period."""
-    state_totals = sights_df.groupby('State').size()
+    state_totals = yearly_sightings.sum()
 
     fig = px.choropleth(locations=[str(x) for x in state_totals.index],
                         scope="usa", locationmode="USA-states",
                         color=state_totals.values,
                         range_color=[0, state_totals.max()],
                         color_continuous_scale=['white', 'red'])
+    fig.update_layout(coloraxis_colorbar=dict(title="Sightings"))
 
     fig.write_image(Path("map-plots", "state-totals.png"), format='png')
 
 
-def animate_totals_map(sightings):
+def animate_totals_map(yearly_sightings):
     """Plotting a gif of periodical state totals."""
     plt_files = list()
 
     # create a map of sightings by state for each time period
-    for dt, freq_counts in sightings.iterrows():
-        day_lbl = dt.strftime('%F')
-        state_locs = [str(x) for x in
-                      freq_counts.index.get_level_values('State')]
+    for year, freq_counts in yearly_sightings.iterrows():
+        state_locs = [str(x) for x in freq_counts.index]
 
         fig = px.choropleth(locations=state_locs,
                             locationmode="USA-states",
-                            title=day_lbl, scope='usa',
+                            title=year, scope='usa',
                             color=freq_counts.values, range_color=[0, 10],
-                            color_continuous_scale=['white', 'black'])
+                            color_continuous_scale=['white', 'red'])
+        fig.update_layout(coloraxis_colorbar=dict(title="Sightings"))
 
-        plt_file = Path("map-plots", "gif-comps", f"counts_{day_lbl}.png")
+        plt_file = Path("map-plots", "gif-comps", f"counts_{year}.png")
         fig.write_image(plt_file, format='png')
         plt_files += [imageio.v2.imread(plt_file)]
 
     # create an animation using the individual weekly maps
-    imageio.mimsave(Path("map-plots", "counts.gif"), plt_files,
-                    duration=0.03)
+    imageio.mimsave(Path("map-plots", "counts.gif"), plt_files, duration=0.03)
 
 
-def predict_sightings(sightings, states, num_lags, seasonal_period,
+def predict_sightings(yearly_sightings, states, num_lags,
                       create_plots=False, verbose=0):
     """Predicting weekly state totals."""
 
     pipeline = ForecasterPipeline([
         ('pre_scaler', StandardScaler()),
-
         ('features', FeatureUnion([
-            ('ar_features', AutoregressiveTransformer(
-                num_lags=num_lags)),
-            ('seasonal_features', SeasonalTransformer(
-                seasonal_period=seasonal_period)),
-            ])),
-
+            ('ar_features', AutoregressiveTransformer(num_lags=num_lags))])),
         ('post_feature_imputer', ReversibleImputer()),
         ('post_feature_scaler', StandardScaler()),
         ('regressor', LinearRegression())
@@ -154,16 +140,15 @@ def predict_sightings(sightings, states, num_lags, seasonal_period,
 
     # assets and specially formatted objects used by the prediction pipeline
     # scikit-learn wants Xs to be 2-dimensional and ys to be 1-dimensional
-    tscv = TimeSeriesSplit(n_splits=4)
-    pred_byfreq = sightings.loc[:, list(states)].sum(axis=1)
-    pred_dates = pred_byfreq.index.values.reshape(-1, 1)
-    pred_values = pred_byfreq.values
+    tscv = TimeSeriesSplit(n_splits=2)
+    pred_values = yearly_sightings.sum(axis=1)
+    pred_dates = yearly_sightings.index.values.reshape(-1, 1)
 
     if verbose > 1:
-        print(f"There are {pred_byfreq.sum()} total sightings for "
+        print(f"There are {pred_values.sum()} total sightings for "
               f"{get_states_lbl(states)}, of which the maximum "
-              f"({pred_byfreq.max()}) took place on "
-              f"{pred_byfreq.idxmax().strftime('%F')}!")
+              f"({pred_values.max()}) took place on "
+              f"{pred_values.idxmax().strftime('%F')}!")
 
     date_values = list()
     real_values = list()
@@ -171,14 +156,20 @@ def predict_sightings(sightings, states, num_lags, seasonal_period,
 
     # for each cross-validation fold, use the training samples in the fold to
     # train the pipeline and the remaining samples to test it
-    for train_index, test_index in tscv.split(pred_byfreq):
-        pipeline.fit(pred_dates[train_index], pred_values[train_index])
-        preds = pipeline.predict(pred_dates[test_index], to_scale=True)
+    for train_index, test_index in tscv.split(pred_values.values):
+        try:
+            pipeline.fit(pred_dates[train_index],
+                         pred_values.values[train_index])
+            preds = pipeline.predict(pred_dates[test_index],
+                                     to_scale=True)
+
+        except ValueError:
+            preds = np.array([0] * len(test_index))
 
         # we'll keep track of the actual sightings and the predicted sightings
         # from each c-v fold for future reference
         date_values += [pred_dates[test_index]]
-        real_values += [pred_values[test_index].flatten().tolist()]
+        real_values += [pred_values.values[test_index].flatten().tolist()]
         regr_values += [preds.flatten().tolist()]
 
     if create_plots:
@@ -219,21 +210,10 @@ def main():
                              "for predicting sightings for different "
                              "sets of states")
 
-    parser.add_argument("--window",
-                        type=str, default='W',
-                        help="which time period to use to group sightings — "
-                             "the default is weekly, and any other pandas "
-                             "offset alias can be used")
-
     parser.add_argument("--num-lags",
-                        type=int, default=52, dest="num_lags",
+                        type=int, default=5, dest="num_lags",
                         help="the number of time series features to use in "
                              "auto-regression")
-    parser.add_argument("--seasonal-period",
-                        type=int, default=52, dest="seasonal_period",
-                        help="the number of time points in a season to use "
-                             "for seasonal correction")
-
     parser.add_argument("--create-plots", "-p",
                         action='store_true', dest="create_plots",
                         help="save visualizations to file?")
@@ -248,34 +228,22 @@ def main():
     else:
         states_lists = [list(VALID_STATES)]
 
-    # create a Time Period x State table containing total periodical sightings
+    # create a Year x State table containing total periodical sightings
     # for each state; note that we have to take into account "missing" periods
     # that did not have any sightings in any states
-    sights_df = parse_sightings(*args.years, args.verbose)
-
-    state_table = sights_df.groupby(
-        ['Date', 'State']).size().unstack().fillna(0)
-
-    state_table = state_table.reindex(
-        index=pd.date_range(f"01-01-{args.years[0]}",
-                            f"12-31-{args.years[1]}"),
-        fill_value=0
-        ).sort_index()
-
-    state_byfreq = state_table.groupby(
-        pd.Grouper(axis=0, freq=args.window, sort=True)).sum().astype(int)
+    state_yearlies = parse_sightings(*args.years, states_lists, args.verbose)
 
     if args.create_plots:
         os.makedirs(Path("map-plots", "gif-comps"), exist_ok=True)
-        plot_totals_map(sights_df)
-        animate_totals_map(state_byfreq)
+        plot_totals_map(state_yearlies)
+        animate_totals_map(state_yearlies)
 
     # predict sightings for each given set of states
     for pred_states in states_lists:
         pred_sightings, rmse_val = predict_sightings(
-            sightings=state_byfreq, states=pred_states,
-            num_lags=args.num_lags, seasonal_period=args.seasonal_period,
-            create_plots=args.create_plots, verbose=args.verbose,
+            yearly_sightings=state_yearlies, states=pred_states,
+            num_lags=args.num_lags, create_plots=args.create_plots,
+            verbose=args.verbose,
             )
 
         print(f"{get_states_lbl(pred_states)}"

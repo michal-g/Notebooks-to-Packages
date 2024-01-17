@@ -12,32 +12,21 @@ Really the only way to run this script is:
 """
 
 import os
-import itertools
-import re
-import requests
-from bs4 import BeautifulSoup
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
-from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
-from sklearn.svm import SVR
-from sklearn.ensemble import RandomForestRegressor
-
+from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import FeatureUnion
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import TimeSeriesSplit
-
 from skits.preprocessing import ReversibleImputer
 from skits.pipeline import ForecasterPipeline
-from skits.feature_extraction import (AutoregressiveTransformer,
-                                      SeasonalTransformer)
+from skits.feature_extraction import AutoregressiveTransformer
 
 import imageio
 import plotly.express as px
 import matplotlib.pyplot as plt
-plt.rcParams["figure.figsize"] = (14, 9)
 
 
 # we will be very careful to filter sightings that can be mapped to states
@@ -64,8 +53,8 @@ def main():
     sights_df = sights_df.loc[sights_df.state.isin(VALID_STATES), :]
 
     # parse the date information into a more useful format
-    sights_df['event_time'] = pd.to_datetime(sights_df.event_time,
-                                             format="%Y-%m-%dT%H:%M:%SZ", errors='coerce')
+    sights_df['event_time'] = pd.to_datetime(
+        sights_df.event_time, format="%Y-%m-%dT%H:%M:%SZ", errors='coerce')
     sights_df = sights_df.loc[~sights_df['event_time'].isna(), :]
 
     # Mapping state totals across entire time period #
@@ -74,45 +63,41 @@ def main():
 
     # calculate totals across all time periods for each state and create a
     # local directory for saving plots
-    state_totals = sights_df.groupby('State').size()
+    state_totals = sights_df.groupby('state').size()
     os.makedirs(Path("map-plots", "gif-comps"), exist_ok=True)
+    plt.rcParams["figure.figsize"] = (14, 9)
 
     fig = px.choropleth(locations=[str(x) for x in state_totals.index],
                         scope="usa", locationmode="USA-states",
                         color=state_totals.values,
                         range_color=[0, state_totals.max()],
                         color_continuous_scale=['white', 'red'])
+    fig.update_layout(coloraxis_colorbar=dict(title="Sightings"))
     fig.write_image(Path("map-plots", "state-totals.png"), format='png')
 
-    # Animating weekly state totals #
+    # Animating yearly state totals #
     # ----------------------------- #
 
-    # create a Week x State table containing total weekly sightings for each
+    # create a Year x State table containing total weekly sightings for each
     # state; note that we have to take into account "missing" weeks that did
     # not have any sightings in any states
-    state_table = sights_df.groupby(
-        ['Date', 'State']).size().unstack().fillna(0)
-    state_table = state_table.reindex(index=pd.date_range('01-01-1990',
-                                                          '12-31-1999'),
-                                      fill_value=0).sort_index()
-
-    state_weeklies = state_table.groupby(
-        pd.Grouper(axis=0, freq='W', sort=True)).sum().astype(int)
+    state_yearlies = sights_df.groupby(
+        [sights_df.event_time.dt.year, 'state']).size().unstack().fillna(0)
 
     # create a map of sightings by state for each week
     plt_files = list()
-    for week, week_counts in state_weeklies.iterrows():
-        day_lbl = week.strftime('%F')
+    for year, year_counts in state_yearlies.iterrows():
         state_locs = [str(x) for x in
-                      week_counts.index.get_level_values('State')]
+                      year_counts.index.get_level_values('state')]
 
         fig = px.choropleth(locations=state_locs, locationmode="USA-states",
-                            title=day_lbl, scope='usa',
-                            color=week_counts.values, range_color=[0, 10],
-                            color_continuous_scale=['white', 'black'])
+                            title=year, scope='usa',
+                            color=year_counts.values, range_color=[0, 10],
+                            color_continuous_scale=['white', 'red'])
+        fig.update_layout(coloraxis_colorbar=dict(title="Sightings"))
 
         # save the map to file and keep track of the file name
-        plt_file = Path("map-plots", "gif-comps", f"counts_{day_lbl}.png")
+        plt_file = Path("map-plots", "gif-comps", f"counts_{year}.png")
         fig.write_image(plt_file, format='png')
         plt_files += [imageio.v2.imread(plt_file)]
 
@@ -126,7 +111,6 @@ def main():
         ('pre_scaler', StandardScaler()),
         ('features', FeatureUnion([
             ('ar_features', AutoregressiveTransformer(num_lags=52)),
-            ('seasonal_features', SeasonalTransformer(seasonal_period=52)),
             ])),
         ('post_feature_imputer', ReversibleImputer()),
         ('post_feature_scaler', StandardScaler()),
@@ -137,10 +121,14 @@ def main():
 
     # assets and specially formatted objects used by the prediction pipeline
     # scikit-learn wants Xs to be 2-dimensional and ys to be 1-dimensional
-    tscv = TimeSeriesSplit(n_splits=4)
-    cali_weeklies = state_weeklies.CA
-    cali_dates = cali_weeklies.index.values.reshape(-1, 1)
-    cali_values = cali_weeklies.values
+    tscv = TimeSeriesSplit(n_splits=2)
+    cali_yearlies = state_yearlies.CA.reindex(
+        range(state_yearlies.index[0], state_yearlies.index[-1] + 1),
+        fill_value=0.
+        )
+
+    cali_dates = cali_yearlies.index.values.reshape(-1, 1)
+    cali_values = cali_yearlies.values
 
     real_values = list()
     pred_values = list()
@@ -148,7 +136,7 @@ def main():
 
     # for each cross-validation fold, use the training samples in the fold to
     # train the pipeline and the remaining samples to test it
-    for train_index, test_index in tscv.split(cali_weeklies):
+    for train_index, test_index in tscv.split(cali_yearlies):
         pipeline.fit(cali_dates[train_index], cali_values[train_index])
         preds = pipeline.predict(cali_dates[test_index], to_scale=True)
 
