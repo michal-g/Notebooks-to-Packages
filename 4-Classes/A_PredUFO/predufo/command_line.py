@@ -16,20 +16,10 @@ parent_parser.add_argument("years",
                            help="the range of years (inclusive) whose "
                                 "sightings will be considered")
 
-parent_parser.add_argument("--window",
-                           type=str, default='W',
-                           help="which time period to use to group sightings "
-                                "— the default is weekly, and any other "
-                                "pandas offset alias can be used")
-
 parent_parser.add_argument("--num-lags",
-                           type=int, default=52, dest="num_lags",
+                           type=int, default=5, dest="num_lags",
                            help="the number of time series features to use in "
                                 "auto-regression")
-parent_parser.add_argument("--seasonal-period",
-                           type=int, default=52, dest="seasonal_period",
-                           help="the number of time points in a season to use "
-                                "for seasonal correction")
 
 parent_parser.add_argument("--create-plots", "-p",
                            action='store_true', dest="create_plots",
@@ -58,21 +48,23 @@ def predict_usa():
     else:
         states_lists = [list(SightingsDataset.VALID_STATES)]
 
-    sights_data = SightingsDataset(*args.years,
-                                   country='usa', verbosity=args.verbose)
-    state_byfreq = sights_data.get_sightings(args.window)
+    sights_data = SightingsDataset(country='usa',
+                                   verbosity=args.verbose)
 
     if args.create_plots:
         os.makedirs(Path("map-plots", "gif-comps"), exist_ok=True)
         sights_data.plot_totals_map()
-        state_byfreq.animate_totals_map()
 
-    # predict sightings for each given set of states
     for pred_states in states_lists:
+        state_byfreq = sights_data.get_sightings(*args.years, pred_states)
+
+        if args.create_plots:
+            state_byfreq.animate_totals_map()
+
+        # predict sightings for each given set of states
         pred_sightings, rmse_val = state_byfreq.predict(
-            num_lags=args.num_lags, seasonal_period=args.seasonal_period,
-            states=pred_states, create_plots=args.create_plots,
-            verbose=args.verbose,
+            num_lags=args.num_lags, states=pred_states,
+            create_plots=args.create_plots, verbose=args.verbose,
             )
 
         print(f"{get_states_lbl(pred_states)}"
@@ -86,14 +78,14 @@ def predict_canada():
 
     # create a table containing sightings by time period; note that we have to
     # take into account "missing" periods that did not have any sightings
-    sights_data = SightingsDataset(*args.years,
-                                   country='canada', verbosity=args.verbose)
-    canada_byfreq = sights_data.get_sightings(args.window)
+    sights_data = SightingsDataset(country='canada',
+                                   verbosity=args.verbose)
+    canada_byfreq = sights_data.get_sightings(*args.years)
 
     # predict sightings for all of Canada
     pred_sightings, rmse_val = canada_byfreq.predict(
-        num_lags=args.num_lags, seasonal_period=args.seasonal_period,
-        states=None, create_plots=args.create_plots, verbose=args.verbose,
+        num_lags=args.num_lags, states=None,
+        create_plots=args.create_plots, verbose=args.verbose,
         )
 
     print(f"{get_states_lbl(None)}\tRMSE: {format(rmse_val, '.3f')}")

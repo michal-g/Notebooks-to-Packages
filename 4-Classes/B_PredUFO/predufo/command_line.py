@@ -30,20 +30,10 @@ parent_parser.add_argument("years",
                            help="the range of years (inclusive) whose "
                                 "sightings will be considered")
 
-parent_parser.add_argument("--window",
-                           type=str, default='W',
-                           help="which time period to use to group sightings "
-                                "— the default is weekly, and any other "
-                                "pandas offset alias can be used")
-
 parent_parser.add_argument("--num-lags",
-                           type=int, default=52, dest="num_lags",
+                           type=int, default=5, dest="num_lags",
                            help="the number of time series features to use in "
                                 "auto-regression")
-parent_parser.add_argument("--seasonal-period",
-                           type=int, default=52, dest="seasonal_period",
-                           help="the number of time points in a season to use "
-                                "for seasonal correction")
 
 parent_parser.add_argument("--create-plots", "-p",
                            action='store_true', dest="create_plots",
